@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FortiCNAPP vs Microsoft Defender for Cloud</title>
+<style>
+  :root {
+    --fortinet-red:   #EF2A1F;
+    --fortinet-red-l: #FF5A4F;
+    --azure:          #0078D4;
+    --azure-l:        #50A0E0;
+
+    --bg:         #0A0C10;
+    --bg-elev-1:  #111419;
+    --bg-elev-2:  #171B22;
+    --bg-elev-3:  #1E232C;
+
+    --border:      #242932;
+    --border-hi:   #2E343F;
+    --border-red:  rgba(239, 42, 31, 0.35);
+    --border-azure:rgba(0, 120, 212, 0.35);
+
+    --text:       #E8EAED;
+    --text-mid:   #A0A6B0;
+    --text-dim:   #6B7280;
+    --text-faint: #434852;
+
+    --ok:   #4ADE80;
+    --warn: #F59E0B;
+    --err:  #EF4444;
+    --grid: rgba(255,255,255,0.03);
+
+    --f-body: Georgia, 'Times New Roman', serif;
+    --f-ui:   Calibri, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    --f-mono: Consolas, 'Courier New', Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; font-style: normal !important; }
+  em, i, cite { font-style: normal !important; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--f-body);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  table, th, td,
+  .stack, .stack *,
+  .pc-card li, .pc-card .subhead,
+  .rec, .mark,
+  .matrix td, .matrix th,
+  .cap-table td, .cap-table th,
+  .score-row, .score-row *,
+  .verdict-bar .score-block,
+  footer li, footer h5,
+  .topbar, .topbar *,
+  .hero-meta, .hero-meta *,
+  .section-num,
+  .radar-legend, .legend-item,
+  .panel-label, .panel-title,
+  .colophon { font-family: var(--f-ui); }
+
+  .hero .dek,
+  .section-head .sub,
+  .verdict-bar .verdict-text { font-family: var(--f-body); }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 64px 64px;
+    pointer-events: none; z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed; top: -200px; right: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(239,42,31,0.10) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+
+  .wrap {
+    position: relative; z-index: 1;
+    max-width: 1320px; margin: 0 auto;
+    padding: 40px 32px 100px;
+  }
+
+  /* TOPBAR */
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    font-family: var(--f-mono); font-size: 10.5px;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim);
+  }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; }
+  .topbar .dot {
+    width: 8px; height: 8px; background: var(--fortinet-red);
+    border-radius: 50%; box-shadow: 0 0 12px var(--fortinet-red);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+  .topbar .meta-right { display: flex; gap: 32px; align-items: center; }
+  .topbar .meta-right span strong { color: var(--text); font-weight: 500; }
+  .topbar .nav-link {
+    color: var(--azure-l); text-decoration: none; font-size: 10px;
+    letter-spacing: 0.1em; padding: 4px 10px;
+    border: 1px solid var(--border-azure); border-radius: 2px;
+    transition: background 0.2s;
+  }
+  .topbar .nav-link:hover { background: rgba(0,120,212,0.1); }
+
+  /* HERO */
+  .hero {
+    padding: 64px 0 48px; border-bottom: 1px solid var(--border); margin-bottom: 56px;
+  }
+  .hero .eyebrow {
+    font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--fortinet-red);
+    margin-bottom: 28px; display: flex; align-items: center; gap: 12px; font-weight: 500;
+  }
+  .hero .eyebrow::before { content:''; width:32px; height:1px; background:var(--fortinet-red); }
+  .hero h1 {
+    font-family: var(--f-ui); font-weight: 400;
+    font-size: clamp(32px, 4.8vw, 58px); line-height: 1.05;
+    letter-spacing: -0.025em; margin-bottom: 28px; max-width: 28ch;
+  }
+  .hero h1 .red   { color: var(--fortinet-red); font-weight: 500; }
+  .hero h1 .azure { color: var(--azure-l); font-weight: 500; }
+  .hero h1 .x { display:inline-block; color:var(--text-dim); margin:0 0.12em; font-weight:400; }
+  .hero .dek {
+    font-size: 17px; line-height: 1.6; color: var(--text-mid);
+    max-width: 70ch; margin-bottom: 40px; font-weight: 400;
+  }
+  .hero .dek strong { color: var(--text); font-weight: 500; }
+
+  .hero-meta {
+    display: grid; grid-template-columns: repeat(4,1fr);
+    gap: 1px; background: var(--border); border: 1px solid var(--border);
+  }
+  .hero-meta > div { background: var(--bg); padding: 18px 20px; }
+  .hero-meta .label {
+    font-family: var(--f-mono); font-size: 10px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; font-weight: 500;
+  }
+  .hero-meta .val { font-family: var(--f-ui); font-size: 16px; color: var(--text); font-weight: 500; }
+  .hero-meta .val .accent { color: var(--fortinet-red); margin: 0 4px; }
+
+  /* SECTIONS */
+  section { margin-bottom: 72px; }
+  .section-head {
+    display: grid; grid-template-columns: 120px 1fr; gap: 32px;
+    margin-bottom: 32px; align-items: start;
+  }
+  .section-num {
+    font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.18em;
+    color: var(--fortinet-red); padding-top: 14px;
+    border-top: 1px solid var(--fortinet-red); font-weight: 500;
+  }
+  .section-head h2 {
+    font-family: var(--f-ui); font-weight: 400;
+    font-size: clamp(26px,2.8vw,34px); line-height: 1.15;
+    letter-spacing: -0.02em; margin-bottom: 10px;
+  }
+  .section-head h2 .accent { color: var(--fortinet-red); font-weight: 500; }
+  .section-head .sub { color:var(--text-mid); font-size:15.5px; line-height:1.55; max-width:76ch; }
+
+  /* STACKS — two columns */
+  .stacks { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; align-items:start; }
+  .stack {
+    background:var(--bg-elev-1); border:1px solid var(--border);
+    border-radius:4px; overflow:hidden;
+    transition: border-color 0.3s ease;
+  }
+  .stack.mdc:hover { border-color: var(--border-azure); }
+  .stack.fcn:hover { border-color: var(--border-red); }
+
+  .stack-head {
+    padding:20px 22px 18px; border-bottom:1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:baseline;
+  }
+  .stack-head .title {
+    font-family:var(--f-mono); font-size:10.5px; letter-spacing:0.16em;
+    text-transform:uppercase; color:var(--text-dim); margin-bottom:6px; font-weight:500;
+  }
+  .stack-head .name { font-family:var(--f-ui); font-size:20px; font-weight:500; }
+  .stack.fcn .stack-head .name .brand { color:var(--fortinet-red); }
+  .stack.mdc .stack-head .name .brand { color:var(--azure-l); }
+  .stack-head .tag {
+    font-family:var(--f-mono); font-size:10px; letter-spacing:0.1em;
+    text-transform:uppercase; padding:4px 10px;
+    border:1px solid var(--border-hi); color:var(--text-mid); border-radius:2px; font-weight:500;
+  }
+  .stack.fcn .stack-head .tag { color:var(--fortinet-red); border-color:var(--border-red); }
+  .stack.mdc .stack-head .tag { color:var(--azure-l); border-color:var(--border-azure); }
+
+  .layer {
+    padding:12px 22px; border-bottom:1px solid var(--border);
+    display:grid; grid-template-columns:100px 1fr; gap:12px; align-items:center;
+    transition:background 0.2s ease;
+  }
+  .layer:hover { background:var(--bg-elev-2); }
+  .layer:last-child { border-bottom:none; }
+  .layer .tier {
+    font-family:var(--f-mono); font-size:10px; letter-spacing:0.12em;
+    color:var(--text-dim); text-transform:uppercase; font-weight:500;
+  }
+  .layer .svc { color:var(--text); font-weight:500; font-size:13px; }
+  .stack.fcn .layer .svc::before,
+  .stack.mdc .layer .svc::before {
+    content:''; display:inline-block; width:4px; height:4px;
+    border-radius:50%; margin-right:8px; vertical-align:middle; transform:translateY(-2px);
+  }
+  .stack.fcn .layer .svc::before { background:var(--fortinet-red); }
+  .stack.mdc .layer .svc::before { background:var(--azure-l); }
+
+  /* CAPABILITY TABLE */
+  .table-wrap {
+    border:1px solid var(--border); border-radius:4px;
+    overflow:hidden; background:var(--bg-elev-1); overflow-x:auto;
+  }
+  .cap-table {
+    width:100%; border-collapse:collapse; font-size:12.5px; min-width:720px;
+  }
+  .cap-table thead th {
+    background:var(--bg-elev-2); color:var(--text-mid); padding:14px 16px;
+    text-align:left; font-family:var(--f-mono); font-size:10px;
+    letter-spacing:0.15em; text-transform:uppercase; font-weight:500;
+    border-bottom:1px solid var(--border);
+  }
+  .cap-table thead th.col-mdc { color:var(--azure-l); }
+  .cap-table thead th.col-fcn { color:var(--fortinet-red); }
+  .cap-table thead th.col-win { text-align:center; width:110px; }
+  .cap-table td {
+    padding:13px 16px; vertical-align:middle;
+    border-bottom:1px solid var(--border); line-height:1.45;
+  }
+  .cap-table tr:last-child td { border-bottom:none; }
+  .cap-table tr:hover td { background:var(--bg-elev-2); }
+  .cap-table td:first-child {
+    font-family:var(--f-ui); font-size:13.5px; color:var(--text);
+    font-weight:500; width:20%;
+  }
+  .cap-table td.cell-data { color:var(--text-mid); font-size:12px; }
+  .cap-table td.cell-win {
+    text-align:center; font-family:var(--f-mono); font-size:10.5px;
+    letter-spacing:0.08em; text-transform:uppercase; font-weight:500;
+  }
+  .winner-mdc { color:var(--azure-l); }
+  .winner-fcn { color:var(--fortinet-red); }
+  .winner-tie { color:var(--text-dim); }
+
+  .mark {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:16px; height:16px; border-radius:50%;
+    font-family:var(--f-mono); font-size:9px; font-weight:700;
+    margin-right:8px; vertical-align:middle;
+  }
+  .mark.yes  { background:rgba(74,222,128,0.15); color:var(--ok);  border:1px solid rgba(74,222,128,0.3); }
+  .mark.part { background:rgba(245,158,11,0.15); color:var(--warn);border:1px solid rgba(245,158,11,0.3); }
+  .mark.no   { background:rgba(239,68,68,0.15);  color:var(--err); border:1px solid rgba(239,68,68,0.3);  }
+
+  /* PROS / CONS — two columns */
+  .pc-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; }
+  .pc-card {
+    background:var(--bg-elev-1); border:1px solid var(--border);
+    border-radius:4px; padding:26px; position:relative; overflow:hidden;
+  }
+  .pc-card.mdc::before { background:var(--azure); }
+  .pc-card.fcn::before { background:var(--fortinet-red); }
+  .pc-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+  .pc-card h4 { font-family:var(--f-ui); font-size:20px; font-weight:500; margin-bottom:4px; }
+  .pc-card.fcn h4 .brand { color:var(--fortinet-red); }
+  .pc-card.mdc h4 .brand { color:var(--azure-l); }
+  .pc-card .subhead {
+    font-family:var(--f-mono); font-size:10.5px; letter-spacing:0.15em;
+    text-transform:uppercase; color:var(--text-dim);
+    margin-bottom:22px; padding-bottom:16px; border-bottom:1px solid var(--border); font-weight:500;
+  }
+  .pc-block { margin-bottom:18px; }
+  .pc-block:last-child { margin-bottom:0; }
+  .pc-block .pc-title {
+    font-family:var(--f-mono); font-size:10px; letter-spacing:0.18em;
+    text-transform:uppercase; margin-bottom:12px;
+    display:flex; align-items:center; gap:10px; font-weight:500;
+  }
+  .pc-block.pros .pc-title { color:var(--ok); }
+  .pc-block.cons .pc-title { color:var(--err); }
+  .pc-block .pc-title::before { content:''; width:20px; height:1px; background:currentColor; }
+  .pc-card ul { list-style:none; }
+  .pc-card li {
+    padding:8px 0 8px 20px; position:relative; font-size:12.5px;
+    line-height:1.5; color:var(--text); border-bottom:1px solid var(--border); font-weight:400;
+  }
+  .pc-card li:last-child { border-bottom:none; }
+  .pc-card li::before {
+    position:absolute; left:0; top:9px;
+    font-family:var(--f-mono); font-size:13px; font-weight:500; line-height:1;
+  }
+  .pros li::before { content:'+'; color:var(--ok); }
+  .cons li::before { content:'\2013'; color:var(--err); }
+  .pc-card li.highlight {
+    background:linear-gradient(90deg,rgba(218,31,31,0.12),rgba(218,31,31,0.02));
+    padding-left:24px; margin-left:-4px;
+    border-left:2px solid var(--fortinet-red); font-weight:500; color:#fff;
+  }
+  .pc-card li.highlight::before { content:'\2605'; color:var(--fortinet-red); left:6px; top:10px; font-size:11px; }
+
+  /* RECOMMENDATION MATRIX */
+  .matrix-wrap { border:1px solid var(--border); border-radius:4px; overflow:hidden; background:var(--bg-elev-1); }
+  .matrix { width:100%; border-collapse:collapse; font-size:13px; }
+  .matrix th {
+    background:var(--bg-elev-2); color:var(--text-mid); padding:14px 20px; text-align:left;
+    font-family:var(--f-mono); font-size:10px; letter-spacing:0.15em;
+    text-transform:uppercase; font-weight:500; border-bottom:1px solid var(--border);
+  }
+  .matrix td {
+    padding:16px 20px; border-bottom:1px solid var(--border);
+    vertical-align:middle; line-height:1.45; color:var(--text-mid);
+  }
+  .matrix tr:last-child td { border-bottom:none; }
+  .matrix tr:hover td { background:var(--bg-elev-2); }
+  .matrix td:first-child { font-family:var(--f-ui); font-size:13.5px; color:var(--text); font-weight:500; width:42%; }
+  .matrix td:last-child { font-size:12px; }
+  .rec {
+    display:inline-block; padding:4px 10px; font-family:var(--f-mono);
+    font-size:9.5px; letter-spacing:0.15em; text-transform:uppercase;
+    font-weight:500; border-radius:2px; white-space:nowrap;
+  }
+  .rec-mdc  { background:rgba(0,120,212,0.12); color:var(--azure-l); border:1px solid var(--border-azure); }
+  .rec-fcn  { background:rgba(239,42,31,0.12); color:var(--fortinet-red); border:1px solid var(--border-red); }
+  .rec-both { background:var(--bg-elev-3); color:var(--text); border:1px solid var(--border-hi); }
+
+  /* DECISION GRAPH */
+  .decision-wrap { background:var(--bg-elev-1); border:1px solid var(--border); border-radius:4px; overflow:hidden; }
+  .decision-grid { display:grid; grid-template-columns:1.2fr 1fr; }
+  .radar-panel { padding:36px 32px; border-right:1px solid var(--border); }
+  .panel-label {
+    font-family:var(--f-mono); font-size:10px; letter-spacing:0.18em;
+    text-transform:uppercase; color:var(--text-dim); margin-bottom:6px; font-weight:500;
+  }
+  .panel-title { font-family:var(--f-ui); font-size:20px; margin-bottom:24px; font-weight:500; }
+  .radar-container { position:relative; width:100%; max-width:540px; margin:0 auto; aspect-ratio:1; }
+  .radar-svg { width:100%; height:100%; display:block; }
+  .radar-ring { fill:none; stroke:var(--border); stroke-width:1; }
+  .radar-ring-outer { stroke:var(--border-hi); }
+  .radar-axis { stroke:var(--border); stroke-width:1; stroke-dasharray:2 3; }
+  .radar-label {
+    font-family:var(--f-mono); font-size:10px; letter-spacing:0.1em;
+    text-transform:uppercase; fill:var(--text-mid); font-weight:500;
+  }
+  .radar-poly-mdc {
+    fill:rgba(0,120,212,0.10); stroke:var(--azure);
+    stroke-width:1.5; stroke-linejoin:round;
+  }
+  .radar-poly-fcn {
+    fill:rgba(239,42,31,0.13); stroke:var(--fortinet-red);
+    stroke-width:1.8; stroke-linejoin:round;
+    filter:drop-shadow(0 0 6px rgba(239,42,31,0.35));
+  }
+  .radar-point-mdc { fill:var(--azure); stroke:var(--bg); stroke-width:1.2; }
+  .radar-point-fcn { fill:var(--fortinet-red); stroke:var(--bg); stroke-width:1.2; }
+  .radar-scale { font-family:var(--f-mono); font-size:8px; fill:var(--text-faint); }
+  .radar-legend {
+    display:flex; gap:24px; justify-content:center; flex-wrap:wrap;
+    margin-top:20px; padding-top:20px; border-top:1px solid var(--border);
+  }
+  .legend-item {
+    display:flex; align-items:center; gap:10px;
+    font-family:var(--f-mono); font-size:10.5px; letter-spacing:0.12em;
+    text-transform:uppercase; color:var(--text-mid); font-weight:500;
+  }
+  .legend-swatch { width:14px; height:14px; border-radius:2px; border:1.5px solid; }
+  .swatch-mdc { background:rgba(0,120,212,0.2); border-color:var(--azure); }
+  .swatch-fcn { background:rgba(239,42,31,0.2); border-color:var(--fortinet-red); }
+
+  .score-panel { padding:36px 32px; }
+  .score-rows { display:flex; flex-direction:column; gap:14px; }
+  .score-row { display:grid; grid-template-columns:100px 1fr; gap:14px; align-items:center; }
+  .score-row .axis {
+    font-family:var(--f-mono); font-size:10px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--text-mid); font-weight:500; line-height:1.25;
+  }
+  .score-bars {
+    position:relative; height:24px; background:var(--bg);
+    border:1px solid var(--border); border-radius:2px; overflow:hidden;
+  }
+  .bar { position:absolute; left:0; height:50%; }
+  .bar-mdc {
+    top:0;
+    background:linear-gradient(90deg,rgba(0,120,212,0.4) 0%,rgba(0,120,212,0.8) 100%);
+    border-bottom:1px solid var(--bg);
+  }
+  .bar-fcn {
+    top:50%;
+    background:linear-gradient(90deg,rgba(239,42,31,0.45) 0%,rgba(239,42,31,0.85) 100%);
+  }
+
+  /* VERDICT BAR */
+  .verdict-bar {
+    margin-top:32px; padding:24px 28px;
+    background:linear-gradient(135deg,rgba(239,42,31,0.08) 0%,transparent 100%);
+    border:1px solid var(--border-red); border-radius:4px;
+    display:grid; grid-template-columns:1fr 1fr 2.5fr; gap:24px; align-items:center;
+  }
+  .score-block { text-align:center; padding:8px 16px; border-right:1px solid var(--border); }
+  .score-block.fcn-score { border-right:none; }
+  .score-block .score-label {
+    font-family:var(--f-mono); font-size:9px; letter-spacing:0.18em;
+    text-transform:uppercase; color:var(--text-dim); margin-bottom:6px; font-weight:500;
+  }
+  .score-block .score-val {
+    font-family:var(--f-ui); font-size:40px; line-height:1; font-weight:400; letter-spacing:-0.02em;
+  }
+  .score-block .score-val .fraction { color:var(--text-faint); font-size:20px; }
+  .score-block.mdc-score .score-val { color:var(--azure-l); }
+  .score-block.fcn-score .score-val { color:var(--fortinet-red); }
+  .verdict-bar .verdict-text {
+    font-family:var(--f-body); font-size:15px; line-height:1.55;
+    color:var(--text); padding-left:20px; border-left:1px solid var(--border);
+  }
+  .verdict-bar .verdict-text strong { color:var(--fortinet-red); font-weight:600; }
+
+  /* FOOTER */
+  footer {
+    margin-top:72px; padding-top:28px; border-top:1px solid var(--border);
+    display:grid; grid-template-columns:1fr 1fr; gap:40px;
+  }
+  footer h5 {
+    font-family:var(--f-mono); font-size:10px; letter-spacing:0.2em;
+    text-transform:uppercase; color:var(--fortinet-red);
+    margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid var(--border); font-weight:500;
+  }
+  footer ul { list-style:none; }
+  footer li {
+    padding:6px 0; font-size:12px; color:var(--text-mid); line-height:1.45;
+    border-bottom:1px dotted var(--border);
+  }
+  footer li:last-child { border-bottom:none; }
+  footer li strong { color:var(--text); font-weight:500; }
+
+  .colophon {
+    margin-top:48px; padding-top:20px; border-top:1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:var(--f-mono); font-size:10px; letter-spacing:0.15em;
+    text-transform:uppercase; color:var(--text-faint); font-weight:500;
+  }
+  .colophon a { color:var(--text-faint); text-decoration:none; }
+
+  /* RESPONSIVE */
+  @media (max-width:1100px) {
+    .stacks, .pc-grid { grid-template-columns:1fr; }
+    .hero-meta { grid-template-columns:repeat(2,1fr); }
+    footer { grid-template-columns:1fr; }
+    .section-head { grid-template-columns:1fr; gap:14px; }
+    .topbar { flex-direction:column; gap:12px; align-items:flex-start; }
+    .topbar .meta-right { flex-wrap:wrap; gap:16px; }
+    .decision-grid { grid-template-columns:1fr; }
+    .radar-panel { border-right:none; border-bottom:1px solid var(--border); }
+    .verdict-bar { grid-template-columns:1fr 1fr; }
+    .verdict-bar .verdict-text { grid-column:1/-1; border-left:none; border-top:1px solid var(--border); padding:20px 0 0; }
+    .score-block.fcn-score { border-right:1px solid var(--border); }
+  }
+  @media (max-width:640px) {
+    .wrap { padding:24px 16px 60px; }
+    .hero { padding:40px 0 32px; }
+    .verdict-bar { grid-template-columns:1fr; }
+    .score-block { border-right:none !important; border-bottom:1px solid var(--border); padding-bottom:18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="topbar">
+  <div class="brand">
+    <span class="dot"></span>
+    <span>Fortinet · PreSales · Technical Brief</span>
+  </div>
+  <div class="meta-right">
+    <span>DOC / <strong>CNAPP-AZURE-01</strong></span>
+    <span>REV / <strong>APR 2026</strong></span>
+    <span>CLASS / <strong>INTERNAL</strong></span>
+    <a class="nav-link" href="index.html">← AWS Three-Way</a>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="eyebrow">CNAPP on Azure · Head-to-Head Comparison</div>
+  <h1><span class="azure">Microsoft Defender for Cloud</span> <span class="x">×</span> <span class="red">FortiCNAPP</span></h1>
+  <p class="dek">Direct comparison of two enterprise CNAPP approaches on Azure. <strong>Microsoft Defender for Cloud</strong> delivers deep Azure-native integration and Microsoft XDR ecosystem convergence. <strong>FortiCNAPP</strong> delivers unified multi-cloud security with closed-loop enforcement via the Fortinet Security Fabric.</p>
+  <div class="hero-meta">
+    <div><div class="label">Scope</div><div class="val">Azure<span class="accent">·</span>Multi-Cloud</div></div>
+    <div><div class="label">Audience</div><div class="val">DevSecOps<span class="accent">·</span>PreSales</div></div>
+    <div><div class="label">Platforms</div><div class="val">2<span class="accent">·</span>Compared</div></div>
+    <div><div class="label">Posture</div><div class="val">Ethical<span class="accent">·</span>Referenced</div></div>
+  </div>
+</header>
+
+<!-- § 01 STACKS -->
+<section>
+  <div class="section-head">
+    <div class="section-num">§ 01 / STACKS</div>
+    <div>
+      <h2>The two stacks.</h2>
+      <p class="sub">Architecture and service composition of each CNAPP approach on Azure.</p>
+    </div>
+  </div>
+  <div class="stacks">
+
+    <div class="stack mdc">
+      <div class="stack-head">
+        <div>
+          <div class="title">Stack A</div>
+          <div class="name"><span class="brand">Microsoft Defender</span> for Cloud</div>
+        </div>
+        <div class="tag">Plan-based</div>
+      </div>
+      <div class="layer"><span class="tier">Platform</span><span class="svc">Defender for Cloud portal + Defender XDR</span></div>
+      <div class="layer"><span class="tier">CSPM</span><span class="svc">Foundational CSPM (free) + Defender CSPM</span></div>
+      <div class="layer"><span class="tier">DevSecOps</span><span class="svc">GitHub · Azure DevOps · GitLab</span></div>
+      <div class="layer"><span class="tier">CWPP</span><span class="svc">Defender for Servers P1 / P2 (MDE)</span></div>
+      <div class="layer"><span class="tier">Container</span><span class="svc">Defender for Containers (AKS · EKS · GKE)</span></div>
+      <div class="layer"><span class="tier">Storage</span><span class="svc">Defender for Storage · malware scan · DSPM</span></div>
+      <div class="layer"><span class="tier">Database</span><span class="svc">Defender for Databases (SQL · OSS · Cosmos DB)</span></div>
+      <div class="layer"><span class="tier">App / API</span><span class="svc">Defender for App Service · Defender for APIs</span></div>
+      <div class="layer"><span class="tier">AI</span><span class="svc">AI SPM · AI Bill of Materials · AI Threat Protection</span></div>
+      <div class="layer"><span class="tier">XDR</span><span class="svc">Microsoft Sentinel · Defender XDR · Entra ID</span></div>
+    </div>
+
+    <div class="stack fcn">
+      <div class="stack-head">
+        <div>
+          <div class="title">Stack B</div>
+          <div class="name"><span class="brand">FortiCNAPP</span></div>
+        </div>
+        <div class="tag">Unified</div>
+      </div>
+      <div class="layer"><span class="tier">Platform</span><span class="svc">Polygraph Data Platform</span></div>
+      <div class="layer"><span class="tier">CSPM</span><span class="svc">Multi-Cloud Posture (Azure · AWS · GCP · OCI)</span></div>
+      <div class="layer"><span class="tier">CWPP</span><span class="svc">Agent + Agentless · behavioral baseline</span></div>
+      <div class="layer"><span class="tier">CIEM</span><span class="svc">Cross-Cloud CIEM · effective-vs-used · blast radius</span></div>
+      <div class="layer"><span class="tier">CDR</span><span class="svc">Composite Alerts · Polygraph ML</span></div>
+      <div class="layer"><span class="tier">Code</span><span class="svc">SCA · SAST · IaC · VS Code extension</span></div>
+      <div class="layer"><span class="tier">Container</span><span class="svc">Image · Runtime · K8s (AKS · EKS · GKE · OKE)</span></div>
+      <div class="layer"><span class="tier">Fabric</span><span class="svc">Fortinet Security Fabric</span></div>
+      <div class="layer"><span class="tier">Response</span><span class="svc">FortiSOAR Playbooks · bidirectional</span></div>
+      <div class="layer"><span class="tier">Enforcement</span><span class="svc">FortiGate Dynamic Address Groups</span></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- § 02 PARITY MATRIX -->
+<section>
+  <div class="section-head">
+    <div class="section-num">§ 02 / PARITY</div>
+    <div>
+      <h2>Capability parity <span class="accent">matrix</span>.</h2>
+      <p class="sub">Where each platform wins. <span style="color:var(--ok)">●</span> full &nbsp; <span style="color:var(--warn)">●</span> partial &nbsp; <span style="color:var(--err)">●</span> gap</p>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="cap-table">
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th class="col-mdc">🔵 Microsoft Defender for Cloud</th>
+          <th class="col-fcn">🔴 FortiCNAPP</th>
+          <th class="col-win">Winner</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Multi-cloud CSPM</td><td class="cell-data"><span class="mark yes">✓</span>Azure · AWS · GCP · on-prem (Arc)</td><td class="cell-data"><span class="mark yes">✓</span>Azure · AWS · GCP · OCI</td><td class="cell-win winner-tie">Tie</td></tr>
+        <tr><td>Azure-native integration</td><td class="cell-data"><span class="mark yes">✓</span>First-party · ARM · zero onboarding lift</td><td class="cell-data"><span class="mark part">◐</span>Connector-based · cross-tenant roles</td><td class="cell-win winner-mdc">Defender</td></tr>
+        <tr><td>CWPP coverage</td><td class="cell-data"><span class="mark yes">✓</span>Defender for Servers P1/P2 via MDE</td><td class="cell-data"><span class="mark yes">✓</span>Agent + agentless · process · file · network</td><td class="cell-win winner-tie">Tie</td></tr>
+        <tr><td>CIEM depth</td><td class="cell-data"><span class="mark part">◐</span>Permissions recommendations · Entra context</td><td class="cell-data"><span class="mark yes">✓</span>Effective-vs-used · blast radius · toxic combos</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
+        <tr><td>Composite alert correlation</td><td class="cell-data"><span class="mark part">◐</span>XDR Incidents correlation</td><td class="cell-data"><span class="mark yes">✓</span>Polygraph ML · 80–95% noise reduction</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
+        <tr><td>Attack path analysis</td><td class="cell-data"><span class="mark yes">✓</span>Cloud Security Explorer · attack paths</td><td class="cell-data"><span class="mark yes">✓</span>Polygraph lateral-movement chains</td><td class="cell-win winner-tie">Tie</td></tr>
+        <tr><td>Detection → enforcement</td><td class="cell-data"><span class="mark no">✕</span>Detection and alerts only</td><td class="cell-data"><span class="mark yes">✓</span>FortiGate dynamic address group block</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
+        <tr><td>DevSecOps · IaC scanning</td><td class="cell-data"><span class="mark yes">✓</span>GitHub · Azure DevOps · GitLab pipelines</td><td class="cell-data"><span class="mark yes">✓</span>SCA · SAST · IaC · VS Code extension</td><td class="cell-win winner-tie">Tie</td></tr>
+        <tr><td>Kubernetes coverage</td><td class="cell-data"><span class="mark yes">✓</span>AKS · EKS · GKE (Arc-enabled)</td><td class="cell-data"><span class="mark yes">✓</span>AKS · EKS · GKE · OKE</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
+        <tr><td>Data Security Posture (DSPM)</td><td class="cell-data"><span class="mark yes">✓</span>Built-in sensitive data discovery</td><td class="cell-data"><span class="mark part">◐</span>Limited native DSPM capability</td><td class="cell-win winner-mdc">Defender</td></tr>
+        <tr><td>AI / GenAI security</td><td class="cell-data"><span class="mark yes">✓</span>AI SPM · AI BOM · AI threat protection</td><td class="cell-data"><span class="mark part">◐</span>On roadmap · not GA</td><td class="cell-win winner-mdc">Defender</td></tr>
+        <tr><td>Auto-remediation</td><td class="cell-data"><span class="mark part">◐</span>Governance rules · Logic Apps</td><td class="cell-data"><span class="mark yes">✓</span>FortiSOAR playbooks · full bidirectional SOAR</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
+        <tr><td>SIEM · XDR ecosystem</td><td class="cell-data"><span class="mark yes">✓</span>Sentinel · Defender XDR · Entra native</td><td class="cell-data"><span class="mark part">◐</span>FortiAnalyzer · SIEM export via API</td><td class="cell-win winner-mdc">Defender</td></tr>
+        <tr><td>Pricing model</td><td class="cell-data"><span class="mark part">◐</span>Per-plan · per-resource · compounds at scale</td><td class="cell-data"><span class="mark yes">✓</span>Platform subscription · predictable</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="margin-top:12px;font-family:var(--f-mono);font-size:10.5px;letter-spacing:0.08em;color:var(--text-dim);">
+    Tally: FortiCNAPP 6 &nbsp;·&nbsp; Microsoft Defender 4 &nbsp;·&nbsp; Tie 4
+  </div>
+</section>
+
+<!-- § 03 PROS & CONS -->
+<section>
+  <div class="section-head">
+    <div class="section-num">§ 03 / PROS &amp; CONS</div>
+    <div>
+      <h2><span class="accent">Strengths &amp; limitations</span>.</h2>
+      <p class="sub">The honest read for customer conversations.</p>
+    </div>
+  </div>
+  <div class="pc-grid">
+
+    <div class="pc-card mdc">
+      <h4><span class="brand">Microsoft Defender</span> for Cloud</h4>
+      <div class="subhead">Plan-based · Azure-native · Microsoft XDR</div>
+      <div class="pc-block pros">
+        <div class="pc-title">Strengths</div>
+        <ul>
+          <li>First-party Azure integration — ARM, Entra, zero onboarding friction</li>
+          <li>Foundational CSPM tier is free for all Azure subscribers</li>
+          <li>Native Microsoft XDR + Sentinel + Entra convergence in one portal</li>
+          <li>Attack path analysis + Cloud Security Explorer graph</li>
+          <li>AI SPM — unique GenAI workload protection (AI BOM, AI threat)</li>
+          <li>DSPM — sensitive data discovery built into Defender CSPM</li>
+          <li>Native DevSecOps: GitHub, Azure DevOps, GitLab pipeline integration</li>
+          <li>Massive Microsoft threat intelligence signal</li>
+        </ul>
+      </div>
+      <div class="pc-block cons">
+        <div class="pc-title">Limitations</div>
+        <ul>
+          <li>Detection-only — no network enforcement or closed-loop response</li>
+          <li>Per-plan pricing compounds rapidly at enterprise scale</li>
+          <li>CIEM depth limited — no effective-vs-used or blast-radius analysis</li>
+          <li>Alert ML correlation via XDR Incidents, not purpose-built composite</li>
+          <li>OCI not supported</li>
+          <li>Dual-portal transition (Azure portal + Defender portal) adds UX friction</li>
+          <li>Non-Azure cloud coverage via connectors — not first-party</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="pc-card fcn">
+      <h4><span class="brand">FortiCNAPP</span></h4>
+      <div class="subhead">Unified · Fortinet Security Fabric</div>
+      <div class="pc-block pros">
+        <div class="pc-title">Strengths</div>
+        <ul>
+          <li class="highlight">Polygraph ML composite alerts — 80–95% noise reduction</li>
+          <li>True multi-cloud — Azure · AWS · GCP · OCI</li>
+          <li>Deep CIEM — effective-vs-used, blast radius, toxic privilege combos</li>
+          <li class="highlight">Fortinet Security Fabric — closed-loop FortiGate enforcement</li>
+          <li>FortiSOAR playbooks — full SOAR automation, not just governance rules</li>
+          <li class="highlight">Platform subscription — predictable TCO at scale</li>
+          <li>Agent + agentless + runtime behavioral CWPP</li>
+          <li>K8s coverage including OKE (Oracle Container Engine)</li>
+        </ul>
+      </div>
+      <div class="pc-block cons">
+        <div class="pc-title">Limitations</div>
+        <ul>
+          <li>No native Azure-first integration — connector-based onboarding required</li>
+          <li>AI/GenAI security on roadmap — not GA at time of writing</li>
+          <li>DSPM limited vs MDfC built-in capability</li>
+          <li>No Microsoft Sentinel native integration</li>
+          <li>Onboarding lift — IAM, log wiring, cross-tenant setup</li>
+          <li>Feature release cycles can exceed 12 months</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- § 04 BY PROFILE -->
+<section>
+  <div class="section-head">
+    <div class="section-num">§ 04 / BY PROFILE</div>
+    <div>
+      <h2>Recommendation by <span class="accent">customer profile</span>.</h2>
+      <p class="sub">Match the platform to the organization's priorities and existing stack.</p>
+    </div>
+  </div>
+  <div class="matrix-wrap">
+    <table class="matrix">
+      <thead>
+        <tr><th>Customer Profile</th><th>Recommendation</th><th>Rationale</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Azure-only · M365 / Defender already licensed · &lt;20 subscriptions</td><td><span class="rec rec-mdc">Defender Lead</span></td><td>Free CSPM tier + existing Microsoft investment — lowest adoption friction</td></tr>
+        <tr><td>Azure-heavy enterprise · Microsoft XDR + Sentinel deployed SOC</td><td><span class="rec rec-mdc">Defender Lead</span></td><td>Native Sentinel + XDR + MDfC integration delivers unified SOC experience</td></tr>
+        <tr><td>GenAI workloads on Azure (Azure OpenAI, Copilot)</td><td><span class="rec rec-mdc">Defender Lead</span></td><td>AI SPM + AI threat protection is unique to MDfC — FortiCNAPP not GA on AI</td></tr>
+        <tr><td>Multi-cloud · Azure + AWS + GCP or OCI footprint</td><td><span class="rec rec-fcn">FortiCNAPP Lead</span></td><td>MDfC connector-based for non-Azure; FortiCNAPP native everywhere including OCI</td></tr>
+        <tr><td>SOC flooded with cloud alerts · needs ML noise reduction</td><td><span class="rec rec-fcn">FortiCNAPP Lead</span></td><td>Polygraph composite alerts cut volume 80–95%; MDfC XDR Incidents lacks this depth</td></tr>
+        <tr><td>Needs closed-loop network enforcement beyond detection</td><td><span class="rec rec-fcn">FortiCNAPP Lead</span></td><td>FortiGate dynamic enforcement — capability MDfC fundamentally cannot match</td></tr>
+        <tr><td>Existing Fortinet customer · FortiGate or FortiWeb deployed</td><td><span class="rec rec-fcn">FortiCNAPP Lead</span></td><td>Security Fabric integration multiplies existing FortiGate investment value</td></tr>
+        <tr><td>Deep CIEM required · blast-radius and toxic combo analysis</td><td><span class="rec rec-fcn">FortiCNAPP Lead</span></td><td>Effective-vs-used CIEM with toxic-combination detection; MDfC CIEM is basic</td></tr>
+        <tr><td>Large enterprise · Azure-native posture + multi-cloud detection</td><td><span class="rec rec-both">Layered: MDfC + FortiCNAPP</span></td><td>MDfC for Azure-native free CSPM baseline; FortiCNAPP for CIEM depth, correlation, enforcement</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- § 05 VERDICT -->
+<section>
+  <div class="section-head">
+    <div class="section-num">§ 05 / VERDICT</div>
+    <div>
+      <h2>The decision, <span class="accent">visualized</span>.</h2>
+      <p class="sub">Eight weighted capability axes scored 0–10 across both platforms.</p>
+    </div>
+  </div>
+
+  <div class="decision-wrap">
+    <div class="decision-grid">
+
+      <div class="radar-panel">
+        <div class="panel-label">Capability Radar</div>
+        <div class="panel-title">Shape of coverage</div>
+        <div class="radar-container">
+          <svg class="radar-svg" viewBox="0 0 560 540" xmlns="http://www.w3.org/2000/svg">
+
+            <!-- Concentric octagon rings r=40/80/120/160/200 -->
+            <polygon class="radar-ring" points="270,230 298.3,241.7 310,270 298.3,298.3 270,310 241.7,298.3 230,270 241.7,241.7"/>
+            <polygon class="radar-ring" points="270,190 326.6,213.4 350,270 326.6,326.6 270,350 213.4,326.6 190,270 213.4,213.4"/>
+            <polygon class="radar-ring" points="270,150 354.9,185.1 390,270 354.9,354.9 270,390 185.1,354.9 150,270 185.1,185.1"/>
+            <polygon class="radar-ring" points="270,110 383.1,156.9 430,270 383.1,383.1 270,430 156.9,383.1 110,270 156.9,156.9"/>
+            <polygon class="radar-ring radar-ring-outer" points="270,70 411.4,128.6 470,270 411.4,411.4 270,470 128.6,411.4 70,270 128.6,128.6"/>
+
+            <!-- 8 axes -->
+            <line class="radar-axis" x1="270" y1="270" x2="270"   y2="70"/>
+            <line class="radar-axis" x1="270" y1="270" x2="411.4" y2="128.6"/>
+            <line class="radar-axis" x1="270" y1="270" x2="470"   y2="270"/>
+            <line class="radar-axis" x1="270" y1="270" x2="411.4" y2="411.4"/>
+            <line class="radar-axis" x1="270" y1="270" x2="270"   y2="470"/>
+            <line class="radar-axis" x1="270" y1="270" x2="128.6" y2="411.4"/>
+            <line class="radar-axis" x1="270" y1="270" x2="70"    y2="270"/>
+            <line class="radar-axis" x1="270" y1="270" x2="128.6" y2="128.6"/>
+
+            <!-- Scale ticks on axis 0 -->
+            <text class="radar-scale" x="276" y="193">8</text>
+            <text class="radar-scale" x="276" y="153">6</text>
+            <text class="radar-scale" x="276" y="113">4</text>
+            <text class="radar-scale" x="276" y="73">2</text>
+
+            <!--
+              MDfC scores (axis 0–7):
+              Multi-cloud=8 → r=160, CIEM=6 → r=120, AlertCorr=7 → r=140,
+              CWPP=8 → r=160, Code/IaC=8 → r=160, Enforcement=3 → r=60,
+              CloudNative=10 → r=200, XDR/Fabric=10 → r=200
+            -->
+            <polygon class="radar-poly-mdc" points="270,110 354.9,185.1 410,270 383.1,383.1 270,430 227.6,312.4 70,270 128.6,128.6"/>
+
+            <!--
+              FortiCNAPP scores (axis 0–7):
+              Multi-cloud=9 → r=180, CIEM=9 → r=180, AlertCorr=10 → r=200,
+              CWPP=9 → r=180, Code/IaC=9 → r=180, Enforcement=10 → r=200,
+              CloudNative=6 → r=120, XDR/Fabric=9 → r=180
+            -->
+            <polygon class="radar-poly-fcn" points="270,90 397.3,142.7 470,270 397.3,397.3 270,450 128.6,411.4 150,270 142.7,142.7"/>
+
+            <!-- MDfC points -->
+            <circle class="radar-point-mdc" cx="270"   cy="110"   r="3.5"/>
+            <circle class="radar-point-mdc" cx="354.9" cy="185.1" r="3.5"/>
+            <circle class="radar-point-mdc" cx="410"   cy="270"   r="3.5"/>
+            <circle class="radar-point-mdc" cx="383.1" cy="383.1" r="3.5"/>
+            <circle class="radar-point-mdc" cx="270"   cy="430"   r="3.5"/>
+            <circle class="radar-point-mdc" cx="227.6" cy="312.4" r="3.5"/>
+            <circle class="radar-point-mdc" cx="70"    cy="270"   r="3.5"/>
+            <circle class="radar-point-mdc" cx="128.6" cy="128.6" r="3.5"/>
+
+            <!-- FortiCNAPP points -->
+            <circle class="radar-point-fcn" cx="270"   cy="90"    r="3.5"/>
+            <circle class="radar-point-fcn" cx="397.3" cy="142.7" r="3.5"/>
+            <circle class="radar-point-fcn" cx="470"   cy="270"   r="3.5"/>
+            <circle class="radar-point-fcn" cx="397.3" cy="397.3" r="3.5"/>
+            <circle class="radar-point-fcn" cx="270"   cy="450"   r="3.5"/>
+            <circle class="radar-point-fcn" cx="128.6" cy="411.4" r="3.5"/>
+            <circle class="radar-point-fcn" cx="150"   cy="270"   r="3.5"/>
+            <circle class="radar-point-fcn" cx="142.7" cy="142.7" r="3.5"/>
+
+            <!-- Axis labels -->
+            <text class="radar-label" x="270"  y="50"  text-anchor="middle">Multi-Cloud</text>
+            <text class="radar-label" x="422"  y="116" text-anchor="start">CIEM</text>
+            <text class="radar-label" x="478"  y="274" text-anchor="start" dominant-baseline="middle">Alert Corr.</text>
+            <text class="radar-label" x="422"  y="428" text-anchor="start" dominant-baseline="hanging">CWPP</text>
+            <text class="radar-label" x="270"  y="488" text-anchor="middle">Code · IaC</text>
+            <text class="radar-label" x="118"  y="428" text-anchor="end"   dominant-baseline="hanging">Enforcement</text>
+            <text class="radar-label" x="62"   y="274" text-anchor="end"   dominant-baseline="middle">Cloud Native</text>
+            <text class="radar-label" x="118"  y="116" text-anchor="end">XDR / Fabric</text>
+
+          </svg>
+        </div>
+        <div class="radar-legend">
+          <div class="legend-item"><span class="legend-swatch swatch-mdc"></span>Microsoft Defender for Cloud</div>
+          <div class="legend-item"><span class="legend-swatch swatch-fcn"></span>FortiCNAPP</div>
+        </div>
+      </div>
+
+      <div class="score-panel">
+        <div class="panel-label">Weighted Scorecard</div>
+        <div class="panel-title">Axis-by-axis comparison</div>
+        <div class="score-rows">
+          <div class="score-row"><span class="axis">Multi-Cloud</span><div class="score-bars"><div class="bar bar-mdc" style="width:80%"></div><div class="bar bar-fcn" style="width:90%"></div></div></div>
+          <div class="score-row"><span class="axis">CIEM</span><div class="score-bars"><div class="bar bar-mdc" style="width:60%"></div><div class="bar bar-fcn" style="width:90%"></div></div></div>
+          <div class="score-row"><span class="axis">Alert Corr.</span><div class="score-bars"><div class="bar bar-mdc" style="width:70%"></div><div class="bar bar-fcn" style="width:100%"></div></div></div>
+          <div class="score-row"><span class="axis">CWPP</span><div class="score-bars"><div class="bar bar-mdc" style="width:80%"></div><div class="bar bar-fcn" style="width:90%"></div></div></div>
+          <div class="score-row"><span class="axis">Code · IaC</span><div class="score-bars"><div class="bar bar-mdc" style="width:80%"></div><div class="bar bar-fcn" style="width:90%"></div></div></div>
+          <div class="score-row"><span class="axis">Enforcement</span><div class="score-bars"><div class="bar bar-mdc" style="width:30%"></div><div class="bar bar-fcn" style="width:100%"></div></div></div>
+          <div class="score-row"><span class="axis">Cloud Native</span><div class="score-bars"><div class="bar bar-mdc" style="width:100%"></div><div class="bar bar-fcn" style="width:60%"></div></div></div>
+          <div class="score-row"><span class="axis">XDR / Fabric</span><div class="score-bars"><div class="bar bar-mdc" style="width:100%"></div><div class="bar bar-fcn" style="width:90%"></div></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="verdict-bar">
+    <div class="score-block mdc-score">
+      <div class="score-label">Defender for Cloud</div>
+      <div class="score-val">60<span class="fraction">/80</span></div>
+    </div>
+    <div class="score-block fcn-score">
+      <div class="score-label">FortiCNAPP</div>
+      <div class="score-val">71<span class="fraction">/80</span></div>
+    </div>
+    <div class="verdict-text">
+      <strong>Recommendation: layer FortiCNAPP on top of MDfC for enterprise Azure environments.</strong> FortiCNAPP wins on security depth — Polygraph ML composite alerts, deep CIEM with blast-radius analysis, and the only closed-loop enforcement via FortiGate. Microsoft Defender for Cloud leads on Azure-native integration, GenAI security (AI SPM), DSPM, and Microsoft XDR ecosystem convergence. Pure Azure shops with M365 licensing may start with MDfC; any multi-cloud environment or SOC requiring network enforcement should deploy FortiCNAPP.
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div>
+    <h5>Primary References</h5>
+    <ul>
+      <li><strong>Microsoft Defender for Cloud</strong> · learn.microsoft.com/azure/defender-for-cloud · Apr 2026</li>
+      <li><strong>Defender for Cloud Pricing</strong> · azure.microsoft.com/pricing/details/defender-for-cloud</li>
+      <li><strong>FortiCNAPP</strong> · Product Page + Release Notes · Feb 2026</li>
+      <li><strong>Microsoft Defender XDR</strong> · Defender portal integration · 2026</li>
+      <li><strong>KuppingerCole</strong> · CNAPP Leadership Compass 2025</li>
+      <li><strong>Gartner Peer Insights</strong> · CNAPP category · 2026</li>
+      <li><strong>FortiGuard Labs</strong> · Cloud Intrusion Detection · Jul 2025</li>
+    </ul>
+  </div>
+  <div>
+    <h5>Recommended Demo Flow</h5>
+    <ul>
+      <li><strong>01</strong> · Polygraph composite alert vs MDfC XDR Incidents — noise comparison</li>
+      <li><strong>02</strong> · CIEM effective-vs-used on an Azure Service Principal</li>
+      <li><strong>03</strong> · FortiSOAR playbook vs Logic Apps — response depth comparison</li>
+      <li><strong>04</strong> · FortiGate dynamic enforcement — capability MDfC cannot match</li>
+      <li><strong>05</strong> · TCO model — MDfC per-plan compounding vs FortiCNAPP platform subscription</li>
+    </ul>
+  </div>
+</footer>
+
+<div class="colophon">
+  <span>CNAPP-AZURE-01 · April 2026 · Internal PreSales</span>
+  <a href="index.html">← AWS Three-Way Comparison</a>
+</div>
+
+</div>
+</body>
+</html>
