@@ -1,1324 +1,353 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CNAPP on AWS — Three-Way Comparison</title>
-<style>
-  :root {
-    --fortinet-red:   #EF2A1F;
-    --fortinet-red-l: #FF5A4F;
-    --aws:            #FF9900;
-    --datadog:        #632CA6;
-    --datadog-l:      #8B5FBF;
-
-    --bg:         #0A0C10;
-    --bg-elev-1:  #111419;
-    --bg-elev-2:  #171B22;
-    --bg-elev-3:  #1E232C;
-
-    --border:     #242932;
-    --border-hi:  #2E343F;
-    --border-red: rgba(239, 42, 31, 0.35);
-
-    --text:       #E8EAED;
-    --text-mid:   #A0A6B0;
-    --text-dim:   #6B7280;
-    --text-faint: #434852;
-
-    --ok:         #4ADE80;
-    --warn:       #F59E0B;
-    --err:        #EF4444;
-
-    --grid: rgba(255, 255, 255, 0.03);
-
-    /* TYPOGRAPHY SYSTEM
-       Body / paragraphs: Georgia (serif, high readability on screen)
-       Headings / UI / tables: Calibri (clean, modern, office-native)
-       Code / mono labels: Consolas (technical data)
-    */
-    --f-body: Georgia, 'Times New Roman', serif;
-    --f-ui:   Calibri, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-    --f-mono: Consolas, 'Courier New', Menlo, monospace;
-  }
-
-  /* Kill ALL italics globally */
-  * { box-sizing: border-box; margin: 0; padding: 0; font-style: normal !important; }
-  em, i, cite { font-style: normal !important; }
-
-  html, body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--f-body);
-    font-size: 15px;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    letter-spacing: 0;
-  }
-
-  /* ==== TYPOGRAPHY ASSIGNMENT ====
-     Georgia (f-body): hero dek, sub-text, verdict prose, long-form reading
-     Calibri (f-ui):   headings, cards, table cells, buttons, UI chrome
-     Consolas (f-mono): labels, codes, numeric data, badges
-  */
-  table, th, td,
-  .stack, .stack *,
-  .pc-card li, .pc-card .subhead,
-  .rec, .mark,
-  .matrix td, .matrix th,
-  .cap-table td, .cap-table th,
-  .score-row, .score-row *,
-  .verdict-bar .score-block,
-  footer li, footer h5,
-  .topbar, .topbar *,
-  .hero-meta, .hero-meta *,
-  .section-num,
-  .radar-legend, .legend-item,
-  .panel-label, .panel-title,
-  .colophon {
-    font-family: var(--f-ui);
-  }
-  /* Georgia stays on prose-style text */
-  .hero .dek,
-  .section-head .sub,
-  .verdict-bar .verdict-text {
-    font-family: var(--f-body);
-  }
-
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(var(--grid) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-    background-size: 64px 64px;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  body::after {
-    content: '';
-    position: fixed;
-    top: -200px;
-    right: -200px;
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(239,42,31,0.10) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .wrap {
-    position: relative;
-    z-index: 1;
-    max-width: 1320px;
-    margin: 0 auto;
-    padding: 40px 32px 100px;
-  }
-
-  /* TOPBAR */
-  .topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border);
-    font-family: var(--f-mono);
-    font-size: 10.5px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-  }
-  .topbar .brand { display: flex; align-items: center; gap: 10px; }
-  .topbar .dot {
-    width: 8px; height: 8px;
-    background: var(--fortinet-red);
-    border-radius: 50%;
-    box-shadow: 0 0 12px var(--fortinet-red);
-    animation: pulse 2.4s ease-in-out infinite;
-  }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
-  .topbar .meta-right { display: flex; gap: 32px; }
-  .topbar .meta-right span strong { color: var(--text); font-weight: 500; }
-
-  /* HERO */
-  .hero {
-    padding: 64px 0 48px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 56px;
-  }
-  .hero .eyebrow {
-    font-family: var(--f-mono);
-    font-size: 11px;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: var(--fortinet-red);
-    margin-bottom: 28px;
-    display: flex; align-items: center; gap: 12px;
-    font-weight: 500;
-  }
-  .hero .eyebrow::before {
-    content: ''; width: 32px; height: 1px;
-    background: var(--fortinet-red);
-  }
-  .hero h1 {
-    font-family: var(--f-ui);
-    font-weight: 400;
-    font-size: clamp(36px, 5.2vw, 64px);
-    line-height: 1.05;
-    letter-spacing: -0.025em;
-    margin-bottom: 28px;
-    max-width: 24ch;
-  }
-  .hero h1 .red { color: var(--fortinet-red); font-weight: 500; }
-  .hero h1 .orange { color: var(--aws); font-weight: 500; }
-  .hero h1 .purple { color: var(--datadog-l); font-weight: 500; }
-  .hero h1 .x {
-    display: inline-block;
-    color: var(--text-dim);
-    margin: 0 0.12em;
-    font-weight: 400;
-  }
-  .hero .dek {
-    font-size: 17px;
-    line-height: 1.6;
-    color: var(--text-mid);
-    max-width: 70ch;
-    margin-bottom: 40px;
-    font-weight: 400;
-  }
-  .hero .dek strong { color: var(--text); font-weight: 500; }
-
-  .hero-meta {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-  }
-  .hero-meta > div { background: var(--bg); padding: 18px 20px; }
-  .hero-meta .label {
-    font-family: var(--f-mono);
-    font-size: 10px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 8px;
-    font-weight: 500;
-  }
-  .hero-meta .val {
-    font-family: var(--f-ui);
-    font-size: 16px;
-    letter-spacing: -0.005em;
-    color: var(--text);
-    font-weight: 500;
-  }
-  .hero-meta .val .accent { color: var(--fortinet-red); margin: 0 4px; }
-
-  /* SECTION */
-  section { margin-bottom: 72px; }
-  .section-head {
-    display: grid;
-    grid-template-columns: 120px 1fr;
-    gap: 32px;
-    margin-bottom: 32px;
-    align-items: start;
-  }
-  .section-num {
-    font-family: var(--f-mono);
-    font-size: 11px;
-    letter-spacing: 0.18em;
-    color: var(--fortinet-red);
-    padding-top: 14px;
-    border-top: 1px solid var(--fortinet-red);
-    font-weight: 500;
-  }
-  .section-head h2 {
-    font-family: var(--f-ui);
-    font-weight: 400;
-    font-size: clamp(26px, 2.8vw, 34px);
-    line-height: 1.15;
-    letter-spacing: -0.02em;
-    margin-bottom: 10px;
-  }
-  .section-head h2 .accent { color: var(--fortinet-red); font-weight: 500; }
-  .section-head .sub {
-    color: var(--text-mid);
-    font-size: 15.5px;
-    line-height: 1.55;
-    max-width: 76ch;
-    font-weight: 400;
-  }
-
-  /* STACKS — three columns */
-  .stacks {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-    align-items: start;
-  }
-
-  .stack {
-    background: var(--bg-elev-1);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    overflow: hidden;
-    transition: border-color 0.3s ease;
-  }
-  .stack.aws:hover { border-color: rgba(255, 153, 0, 0.35); }
-  .stack.dd:hover  { border-color: rgba(139, 95, 191, 0.45); }
-  .stack.fcn:hover { border-color: var(--border-red); }
-
-  .stack-head {
-    padding: 20px 22px 18px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-  }
-  .stack-head .title {
-    font-family: var(--f-mono);
-    font-size: 10.5px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 6px;
-    font-weight: 500;
-  }
-  .stack-head .name {
-    font-family: var(--f-ui);
-    font-size: 20px;
-    letter-spacing: -0.01em;
-    font-weight: 500;
-  }
-  .stack.fcn .stack-head .name .brand { color: var(--fortinet-red); }
-  .stack.dd  .stack-head .name .brand { color: var(--datadog-l); }
-  .stack.aws .stack-head .name .brand { color: var(--aws); }
-  .stack-head .tag {
-    font-family: var(--f-mono);
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 4px 10px;
-    border: 1px solid var(--border-hi);
-    color: var(--text-mid);
-    border-radius: 2px;
-    font-weight: 500;
-  }
-  .stack.fcn .stack-head .tag { color: var(--fortinet-red); border-color: var(--border-red); }
-  .stack.dd  .stack-head .tag { color: var(--datadog-l);   border-color: rgba(139, 95, 191, 0.4); }
-  .stack.aws .stack-head .tag { color: var(--aws);         border-color: rgba(255, 153, 0, 0.35); }
-
-  .layer {
-    padding: 12px 22px;
-    border-bottom: 1px solid var(--border);
-    display: grid;
-    grid-template-columns: 88px 1fr;
-    gap: 12px;
-    align-items: center;
-    transition: background 0.2s ease;
-  }
-  .layer:hover { background: var(--bg-elev-2); }
-  .layer:last-child { border-bottom: none; }
-  .layer .tier {
-    font-family: var(--f-mono);
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    font-weight: 500;
-  }
-  .layer .svc {
-    color: var(--text);
-    font-weight: 500;
-    font-size: 13px;
-  }
-  .stack.fcn .layer .svc::before,
-  .stack.dd  .layer .svc::before,
-  .stack.aws .layer .svc::before {
-    content: '';
-    display: inline-block;
-    width: 4px; height: 4px;
-    border-radius: 50%;
-    margin-right: 8px;
-    vertical-align: middle;
-    transform: translateY(-2px);
-  }
-  .stack.fcn .layer .svc::before { background: var(--fortinet-red); }
-  .stack.dd  .layer .svc::before { background: var(--datadog-l); }
-  .stack.aws .layer .svc::before { background: var(--aws); }
-
-  /* CAPABILITY TABLE */
-  .table-wrap {
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    overflow: hidden;
-    background: var(--bg-elev-1);
-    overflow-x: auto;
-  }
-  .cap-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12.5px;
-    min-width: 880px;
-  }
-  .cap-table thead th {
-    background: var(--bg-elev-2);
-    color: var(--text-mid);
-    padding: 14px 16px;
-    text-align: left;
-    font-family: var(--f-mono);
-    font-size: 10px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    font-weight: 500;
-    border-bottom: 1px solid var(--border);
-  }
-  .cap-table thead th.col-aws { color: var(--aws); }
-  .cap-table thead th.col-dd  { color: var(--datadog-l); }
-  .cap-table thead th.col-fcn { color: var(--fortinet-red); }
-  .cap-table thead th.col-win { text-align: center; width: 110px; }
-
-  .cap-table td {
-    padding: 13px 16px;
-    vertical-align: middle;
-    border-bottom: 1px solid var(--border);
-    line-height: 1.45;
-  }
-  .cap-table tr:last-child td { border-bottom: none; }
-  .cap-table tr:hover td { background: var(--bg-elev-2); }
-  .cap-table td:first-child {
-    font-family: var(--f-ui);
-    font-size: 13.5px;
-    color: var(--text);
-    font-weight: 500;
-    letter-spacing: -0.005em;
-    width: 20%;
-  }
-  .cap-table td.cell-data {
-    color: var(--text-mid);
-    font-size: 12px;
-  }
-  .cap-table td.cell-win {
-    text-align: center;
-    font-family: var(--f-mono);
-    font-size: 10.5px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-weight: 500;
-  }
-  .winner-aws { color: var(--aws); }
-  .winner-dd  { color: var(--datadog-l); }
-  .winner-fcn { color: var(--fortinet-red); }
-  .winner-tie { color: var(--text-dim); }
-
-  .mark {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px; height: 16px;
-    border-radius: 50%;
-    font-family: var(--f-mono);
-    font-size: 9px;
-    font-weight: 700;
-    margin-right: 8px;
-    vertical-align: middle;
-  }
-  .mark.yes { background: rgba(74,222,128,0.15); color: var(--ok); border: 1px solid rgba(74,222,128,0.3); }
-  .mark.part { background: rgba(245,158,11,0.15); color: var(--warn); border: 1px solid rgba(245,158,11,0.3); }
-  .mark.no { background: rgba(239,68,68,0.15); color: var(--err); border: 1px solid rgba(239,68,68,0.3); }
-
-  /* PROS CONS — three columns */
-  .pc-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-  }
-  .pc-card {
-    background: var(--bg-elev-1);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 26px;
-    position: relative;
-    overflow: hidden;
-  }
-  .pc-card.aws::before { background: var(--aws); }
-  .pc-card.dd::before  { background: var(--datadog-l); }
-  .pc-card.fcn::before { background: var(--fortinet-red); }
-  .pc-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-  }
-  .pc-card h4 {
-    font-family: var(--f-ui);
-    font-size: 20px;
-    font-weight: 500;
-    letter-spacing: -0.015em;
-    margin-bottom: 4px;
-  }
-  .pc-card.fcn h4 .brand { color: var(--fortinet-red); }
-  .pc-card.dd  h4 .brand { color: var(--datadog-l); }
-  .pc-card.aws h4 .brand { color: var(--aws); }
-  .pc-card .subhead {
-    font-family: var(--f-mono);
-    font-size: 10.5px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 22px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border);
-    font-weight: 500;
-  }
-
-  .pc-block { margin-bottom: 18px; }
-  .pc-block:last-child { margin-bottom: 0; }
-  .pc-block .pc-title {
-    font-family: var(--f-mono);
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-weight: 500;
-  }
-  .pc-block.pros .pc-title { color: var(--ok); }
-  .pc-block.cons .pc-title { color: var(--err); }
-  .pc-block .pc-title::before {
-    content: '';
-    width: 20px;
-    height: 1px;
-    background: currentColor;
-  }
-
-  .pc-card ul { list-style: none; }
-  .pc-card li {
-    padding: 8px 0 8px 20px;
-    position: relative;
-    font-size: 12.5px;
-    line-height: 1.5;
-    color: var(--text);
-    border-bottom: 1px solid var(--border);
-    font-weight: 400;
-  }
-  .pc-card li:last-child { border-bottom: none; }
-  .pc-card li::before {
-    position: absolute;
-    left: 0; top: 9px;
-    font-family: var(--f-mono);
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 1;
-  }
-  .pros li::before { content: '+'; color: var(--ok); }
-  .cons li::before { content: '\2013'; color: var(--err); }
-
-  /* DECISION MATRIX */
-  .matrix-wrap {
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    overflow: hidden;
-    background: var(--bg-elev-1);
-  }
-  .matrix {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-  }
-  .matrix th {
-    background: var(--bg-elev-2);
-    color: var(--text-mid);
-    padding: 14px 20px;
-    text-align: left;
-    font-family: var(--f-mono);
-    font-size: 10px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    font-weight: 500;
-    border-bottom: 1px solid var(--border);
-  }
-  .matrix td {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
-    line-height: 1.45;
-    color: var(--text-mid);
-  }
-  .matrix tr:last-child td { border-bottom: none; }
-  .matrix tr:hover td { background: var(--bg-elev-2); }
-  .matrix td:first-child {
-    font-family: var(--f-ui);
-    font-size: 13.5px;
-    color: var(--text);
-    font-weight: 500;
-    width: 48%;
-  }
-  .rec {
-    display: inline-block;
-    padding: 4px 10px;
-    font-family: var(--f-mono);
-    font-size: 9.5px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    font-weight: 500;
-    border-radius: 2px;
-  }
-  .rec-aws { background: rgba(255,153,0,0.12); color: var(--aws); border: 1px solid rgba(255,153,0,0.3); }
-  .rec-dd  { background: rgba(139,95,191,0.15); color: var(--datadog-l); border: 1px solid rgba(139,95,191,0.35); }
-  .rec-fcn { background: rgba(239,42,31,0.12); color: var(--fortinet-red); border: 1px solid var(--border-red); }
-  .rec-both { background: var(--bg-elev-3); color: var(--text); border: 1px solid var(--border-hi); }
-
-  /* DECISION GRAPH */
-  .decision-wrap {
-    background: var(--bg-elev-1);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-  .decision-grid {
-    display: grid;
-    grid-template-columns: 1.2fr 1fr;
-    gap: 0;
-  }
-  .radar-panel {
-    padding: 36px 32px;
-    border-right: 1px solid var(--border);
-  }
-  .panel-label {
-    font-family: var(--f-mono);
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 6px;
-    font-weight: 500;
-  }
-  .panel-title {
-    font-family: var(--f-ui);
-    font-size: 20px;
-    letter-spacing: -0.01em;
-    margin-bottom: 24px;
-    font-weight: 500;
-  }
-
-  .radar-container {
-    position: relative;
-    width: 100%;
-    max-width: 540px;
-    margin: 0 auto;
-    aspect-ratio: 1;
-  }
-  .radar-svg { width: 100%; height: 100%; display: block; }
-  .radar-ring { fill: none; stroke: var(--border); stroke-width: 1; }
-  .radar-ring-outer { stroke: var(--border-hi); }
-  .radar-axis { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 3; }
-  .radar-label {
-    font-family: var(--f-mono);
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    fill: var(--text-mid);
-    font-weight: 500;
-  }
-  .radar-label-weight {
-    font-family: var(--f-mono);
-    font-size: 8.5px;
-    fill: var(--text-faint);
-    font-weight: 400;
-  }
-  .radar-poly-aws {
-    fill: rgba(255, 153, 0, 0.10);
-    stroke: var(--aws);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-  }
-  .radar-poly-dd {
-    fill: rgba(139, 95, 191, 0.13);
-    stroke: var(--datadog-l);
-    stroke-width: 1.5;
-    stroke-linejoin: round;
-  }
-  .radar-poly-fcn {
-    fill: rgba(239, 42, 31, 0.13);
-    stroke: var(--fortinet-red);
-    stroke-width: 1.8;
-    stroke-linejoin: round;
-    filter: drop-shadow(0 0 6px rgba(239, 42, 31, 0.35));
-  }
-  .radar-point-aws { fill: var(--aws); stroke: var(--bg); stroke-width: 1.2; }
-  .radar-point-dd  { fill: var(--datadog-l); stroke: var(--bg); stroke-width: 1.2; }
-  .radar-point-fcn { fill: var(--fortinet-red); stroke: var(--bg); stroke-width: 1.2; }
-  .radar-scale {
-    font-family: var(--f-mono);
-    font-size: 8px;
-    fill: var(--text-faint);
-    font-weight: 400;
-  }
-
-  .radar-legend {
-    display: flex;
-    gap: 20px;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border);
-  }
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: var(--f-mono);
-    font-size: 10.5px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--text-mid);
-    font-weight: 500;
-  }
-  .legend-swatch {
-    width: 14px; height: 14px;
-    border-radius: 2px;
-    border: 1.5px solid;
-  }
-  .swatch-aws { background: rgba(255,153,0,0.2); border-color: var(--aws); }
-  .swatch-dd  { background: rgba(139,95,191,0.2); border-color: var(--datadog-l); }
-  .swatch-fcn { background: rgba(239,42,31,0.2); border-color: var(--fortinet-red); }
-
-  .score-panel { padding: 36px 32px; }
-
-  .score-rows {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .score-row {
-    display: grid;
-    grid-template-columns: 95px 1fr;
-    gap: 14px;
-    align-items: center;
-  }
-  .score-row .axis {
-    font-family: var(--f-mono);
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-mid);
-    font-weight: 500;
-  }
-  .score-bars {
-    position: relative;
-    height: 30px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .bar {
-    position: absolute;
-    left: 0;
-    height: 33.33%;
-    transition: width 1s ease-out;
-  }
-  .bar-aws {
-    top: 0;
-    background: linear-gradient(90deg, rgba(255,153,0,0.4) 0%, rgba(255,153,0,0.75) 100%);
-    border-bottom: 1px solid var(--bg);
-  }
-  .bar-dd {
-    top: 33.33%;
-    background: linear-gradient(90deg, rgba(139,95,191,0.4) 0%, rgba(139,95,191,0.8) 100%);
-    border-bottom: 1px solid var(--bg);
-  }
-  .bar-fcn {
-    top: 66.66%;
-    background: linear-gradient(90deg, rgba(239,42,31,0.45) 0%, rgba(239,42,31,0.85) 100%);
-  }
-
-  /* VERDICT BAR — three scores */
-  .verdict-bar {
-    margin-top: 32px;
-    padding: 24px 28px;
-    background: linear-gradient(135deg, rgba(239,42,31,0.08) 0%, transparent 100%);
-    border: 1px solid var(--border-red);
-    border-radius: 4px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr) 2fr;
-    gap: 24px;
-    align-items: center;
-  }
-  .score-block {
-    text-align: center;
-    padding: 8px 16px;
-    border-right: 1px solid var(--border);
-  }
-  .score-block.fcn-score { border-right: none; }
-  .score-block .score-label {
-    font-family: var(--f-mono);
-    font-size: 9px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 6px;
-    font-weight: 500;
-  }
-  .score-block .score-val {
-    font-family: var(--f-ui);
-    font-size: 40px;
-    line-height: 1;
-    font-weight: 400;
-    letter-spacing: -0.02em;
-  }
-  .score-block .score-val .fraction {
-    color: var(--text-faint);
-    font-size: 20px;
-    font-weight: 400;
-  }
-  .score-block.aws-score .score-val { color: var(--aws); }
-  .score-block.dd-score  .score-val { color: var(--datadog-l); }
-  .score-block.fcn-score .score-val { color: var(--fortinet-red); }
-
-  .verdict-bar .verdict-text {
-    font-family: var(--f-body);
-    font-size: 15px;
-    line-height: 1.55;
-    color: var(--text);
-    font-weight: 400;
-    padding-left: 20px;
-    border-left: 1px solid var(--border);
-  }
-  .verdict-bar .verdict-text strong {
-    color: var(--fortinet-red);
-    font-weight: 600;
-  }
-
-  /* FOOTER */
-  footer {
-    margin-top: 72px;
-    padding-top: 28px;
-    border-top: 1px solid var(--border);
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 40px;
-  }
-  footer h5 {
-    font-family: var(--f-mono);
-    font-size: 10px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--fortinet-red);
-    margin-bottom: 16px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border);
-    font-weight: 500;
-  }
-  footer ul { list-style: none; }
-  footer li {
-    padding: 6px 0;
-    font-size: 12px;
-    color: var(--text-mid);
-    line-height: 1.45;
-    border-bottom: 1px dotted var(--border);
-  }
-  footer li:last-child { border-bottom: none; }
-  footer li strong { color: var(--text); font-weight: 500; }
-
-  .colophon {
-    margin-top: 48px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-family: var(--f-mono);
-    font-size: 10px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--text-faint);
-    font-weight: 500;
-  }
-
-  /* RESPONSIVE */
-  @media (max-width: 1100px) {
-    .stacks, .pc-grid { grid-template-columns: 1fr; }
-    .hero-meta { grid-template-columns: repeat(2, 1fr); }
-    footer { grid-template-columns: 1fr; }
-    .section-head { grid-template-columns: 1fr; gap: 14px; }
-    .topbar { flex-direction: column; gap: 12px; align-items: flex-start; }
-    .topbar .meta-right { flex-wrap: wrap; gap: 20px; }
-    .decision-grid { grid-template-columns: 1fr; }
-    .radar-panel { border-right: none; border-bottom: 1px solid var(--border); }
-    .verdict-bar { grid-template-columns: repeat(3, 1fr); }
-    .verdict-bar .verdict-text { grid-column: 1 / -1; border-left: none; border-top: 1px solid var(--border); padding: 20px 0 0 0; }
-    .score-block.fcn-score { border-right: 1px solid var(--border); }
-  }
-  @media (max-width: 640px) {
-    .wrap { padding: 24px 16px 60px; }
-    .hero { padding: 40px 0 32px; }
-    .verdict-bar { grid-template-columns: 1fr; }
-    .score-block { border-right: none !important; border-bottom: 1px solid var(--border); padding-bottom: 18px; }
-  }
-</style>
-</head>
-<body>
-<div class="wrap">
-
-<div class="topbar">
-  <div class="brand">
-    <span class="dot"></span>
-    <span>Fortinet · PreSales · Technical Brief</span>
-  </div>
-  <div class="meta-right">
-    <span>DOC / <strong>CNAPP-AWS-02</strong></span>
-    <span>REV / <strong>APR 2026</strong></span>
-    <span>CLASS / <strong>INTERNAL</strong></span>
-  </div>
-</div>
-
-<header class="hero">
-  <div class="eyebrow">CNAPP on AWS · Three-Way Platform Comparison</div>
-  <h1><span class="orange">AWS Native</span> <span class="x">×</span> <span class="purple">Datadog</span> <span class="x">×</span> <span class="red">FortiCNAPP</span></h1>
-  <p class="dek">Side-by-side comparison of three CNAPP approaches on AWS. <strong>AWS Native</strong> supplies guardrails and preventive controls. <strong>Datadog</strong> bundles CNAPP into the observability platform. <strong>FortiCNAPP</strong> delivers unified cloud security with closed-loop enforcement via the Fortinet Security Fabric.</p>
-
-  <div class="hero-meta">
-    <div><div class="label">Scope</div><div class="val">AWS<span class="accent">·</span>Single CSP</div></div>
-    <div><div class="label">Audience</div><div class="val">DevSecOps<span class="accent">·</span>PreSales</div></div>
-    <div><div class="label">Platforms</div><div class="val">3<span class="accent">·</span>Compared</div></div>
-    <div><div class="label">Posture</div><div class="val">Ethical<span class="accent">·</span>Referenced</div></div>
-  </div>
-</header>
-
-<section>
-  <div class="section-head">
-    <div class="section-num">§ 01 / STACKS</div>
-    <div>
-      <h2>The three stacks.</h2>
-      <p class="sub">Layer composition of each approach to CNAPP on AWS.</p>
-    </div>
-  </div>
-
-  <div class="stacks">
-    <div class="stack aws">
-      <div class="stack-head">
-        <div>
-          <div class="title">Stack A</div>
-          <div class="name"><span class="brand">AWS Native</span></div>
-        </div>
-        <div class="tag">Assembled</div>
-      </div>
-      <div class="layer"><span class="tier">Hub</span><span class="svc">Security Hub CSPM</span></div>
-      <div class="layer"><span class="tier">CSPM</span><span class="svc">AWS Config</span></div>
-      <div class="layer"><span class="tier">Audit</span><span class="svc">CloudTrail</span></div>
-      <div class="layer"><span class="tier">Threat</span><span class="svc">GuardDuty</span></div>
-      <div class="layer"><span class="tier">CWPP</span><span class="svc">Inspector</span></div>
-      <div class="layer"><span class="tier">Graph</span><span class="svc">Detective</span></div>
-      <div class="layer"><span class="tier">Data</span><span class="svc">Macie</span></div>
-      <div class="layer"><span class="tier">CIEM</span><span class="svc">Access Analyzer</span></div>
-      <div class="layer"><span class="tier">Preventive</span><span class="svc">Control Tower · SCPs</span></div>
-      <div class="layer"><span class="tier">Auto</span><span class="svc">EventBridge · Lambda</span></div>
-    </div>
-
-    <div class="stack dd">
-      <div class="stack-head">
-        <div>
-          <div class="title">Stack B</div>
-          <div class="name"><span class="brand">Datadog</span> CNAPP</div>
-        </div>
-        <div class="tag">Bundled</div>
-      </div>
-      <div class="layer"><span class="tier">Platform</span><span class="svc">Observability Data Lake</span></div>
-      <div class="layer"><span class="tier">CSPM</span><span class="svc">1000+ OOTB Rules</span></div>
-      <div class="layer"><span class="tier">KSPM</span><span class="svc">CIS · EKS / AKS / GKE</span></div>
-      <div class="layer"><span class="tier">CWPP</span><span class="svc">Datadog Agent</span></div>
-      <div class="layer"><span class="tier">CIEM</span><span class="svc">IAM Risk · AWS·Azure·GCP</span></div>
-      <div class="layer"><span class="tier">CDR</span><span class="svc">Cloud SIEM · Signals</span></div>
-      <div class="layer"><span class="tier">Triage</span><span class="svc">Security Inbox</span></div>
-      <div class="layer"><span class="tier">Code</span><span class="svc">SAST · SCA · IAST</span></div>
-      <div class="layer"><span class="tier">AppSec</span><span class="svc">Runtime AppSec · RASP</span></div>
-      <div class="layer"><span class="tier">Workflow</span><span class="svc">Workflows · Jira</span></div>
-    </div>
-
-    <div class="stack fcn">
-      <div class="stack-head">
-        <div>
-          <div class="title">Stack C</div>
-          <div class="name"><span class="brand">FortiCNAPP</span></div>
-        </div>
-        <div class="tag">Unified</div>
-      </div>
-      <div class="layer"><span class="tier">Platform</span><span class="svc">Polygraph Data Platform</span></div>
-      <div class="layer"><span class="tier">CSPM</span><span class="svc">Multi-Cloud Posture</span></div>
-      <div class="layer"><span class="tier">CWPP</span><span class="svc">Agent + Agentless</span></div>
-      <div class="layer"><span class="tier">CIEM</span><span class="svc">Cross-Cloud CIEM</span></div>
-      <div class="layer"><span class="tier">CDR</span><span class="svc">Composite Alerts</span></div>
-      <div class="layer"><span class="tier">Code</span><span class="svc">SCA · SAST · IaC</span></div>
-      <div class="layer"><span class="tier">Container</span><span class="svc">Image · Runtime · K8s</span></div>
-      <div class="layer"><span class="tier">Fabric</span><span class="svc">Fortinet Security Fabric</span></div>
-      <div class="layer"><span class="tier">Response</span><span class="svc">FortiSOAR Playbooks</span></div>
-      <div class="layer"><span class="tier">Audit</span><span class="svc">Native Log Ingest</span></div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="section-head">
-    <div class="section-num">§ 02 / PARITY</div>
-    <div>
-      <h2>Capability parity <span class="accent">matrix</span>.</h2>
-      <p class="sub">Where each platform wins. <span style="color:var(--ok)">●</span> full &nbsp; <span style="color:var(--warn)">●</span> partial &nbsp; <span style="color:var(--err)">●</span> gap</p>
-    </div>
-  </div>
-
-  <div class="table-wrap">
-    <table class="cap-table">
-      <thead>
-        <tr>
-          <th>Capability</th>
-          <th class="col-aws">AWS Native</th>
-          <th class="col-dd">Datadog</th>
-          <th class="col-fcn">FortiCNAPP</th>
-          <th class="col-win">Winner</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td>Multi-cloud CSPM</td><td class="cell-data"><span class="mark no">✕</span>AWS only</td><td class="cell-data"><span class="mark yes">✓</span>AWS · Azure · GCP</td><td class="cell-data"><span class="mark yes">✓</span>AWS · Azure · GCP · OCI</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
-        <tr><td>Agent-based CWPP</td><td class="cell-data"><span class="mark part">◐</span>SSM Agent only</td><td class="cell-data"><span class="mark yes">✓</span>Datadog Agent</td><td class="cell-data"><span class="mark yes">✓</span>Process · file · network</td><td class="cell-win winner-tie">Tie</td></tr>
-        <tr><td>Agentless scanning</td><td class="cell-data"><span class="mark part">◐</span>Inspector (scan-based)</td><td class="cell-data"><span class="mark part">◐</span>Agentless (limited)</td><td class="cell-data"><span class="mark yes">✓</span>Full agentless + snapshot</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
-        <tr><td>Runtime behavioral</td><td class="cell-data"><span class="mark part">◐</span>Network-layer only</td><td class="cell-data"><span class="mark yes">✓</span>Process · file · network</td><td class="cell-data"><span class="mark yes">✓</span>+ K8s audit + ML baseline</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
-        <tr><td>Vulnerability scan</td><td class="cell-data"><span class="mark yes">✓</span>Inspector</td><td class="cell-data"><span class="mark yes">✓</span>Host · container · Lambda</td><td class="cell-data"><span class="mark yes">✓</span>+ runtime exploitability</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
-        <tr><td>CIEM depth</td><td class="cell-data"><span class="mark part">◐</span>Access Analyzer</td><td class="cell-data"><span class="mark yes">✓</span>IAM risks · remediation</td><td class="cell-data"><span class="mark yes">✓</span>Effective-vs-used · toxic</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
-        <tr><td>Alert Composite</td><td class="cell-data"><span class="mark no">✕</span>None</td><td class="cell-data"><span class="mark part">◐</span>Security Inbox</td><td class="cell-data"><span class="mark yes">✓</span>Polygraph ML</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
-        <tr><td>Observability correlation</td><td class="cell-data"><span class="mark no">✕</span>CloudWatch only</td><td class="cell-data"><span class="mark yes">✓</span>APM · logs · metrics</td><td class="cell-data"><span class="mark no">✕</span>Not primary use-case</td><td class="cell-win winner-dd">Datadog</td></tr>
-        <tr><td>Compliance frameworks</td><td class="cell-data"><span class="mark yes">✓</span>AFSBP · CIS · PCI</td><td class="cell-data"><span class="mark yes">✓</span>CIS · PCI · HIPAA · SOC2</td><td class="cell-data"><span class="mark yes">✓</span>+ custom authoring</td><td class="cell-win winner-tie">Tie</td></tr>
-        <tr><td>IaC · code scanning</td><td class="cell-data"><span class="mark no">✕</span>No native scanner</td><td class="cell-data"><span class="mark yes">✓</span>SAST · SCA · IAST</td><td class="cell-data"><span class="mark yes">✓</span>SCA · SAST · IaC · VS Code</td><td class="cell-win winner-tie">Tie</td></tr>
-        <tr><td>Kubernetes coverage</td><td class="cell-data"><span class="mark part">◐</span>EKS only</td><td class="cell-data"><span class="mark yes">✓</span>EKS · AKS · GKE</td><td class="cell-data"><span class="mark yes">✓</span>EKS · AKS · GKE · OKE</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
-        <tr><td>Auto-remediation</td><td class="cell-data"><span class="mark part">◐</span>DIY EventBridge</td><td class="cell-data"><span class="mark part">◐</span>Workflows · Jira</td><td class="cell-data"><span class="mark yes">✓</span>FortiSOAR playbooks</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
-        <tr><td>Detection → enforcement</td><td class="cell-data"><span class="mark no">✕</span>Detection only</td><td class="cell-data"><span class="mark no">✕</span>Detection only</td><td class="cell-data"><span class="mark yes">✓</span>FortiGate dynamic</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
-        <tr><td>Preventive guardrails</td><td class="cell-data"><span class="mark yes">✓</span>SCPs · Control Tower</td><td class="cell-data"><span class="mark no">✕</span>Detective only</td><td class="cell-data"><span class="mark no">✕</span>Detective only</td><td class="cell-win winner-aws">AWS</td></tr>
-        <tr><td>Cloud Native integration</td><td class="cell-data"><span class="mark yes">✓</span>First-party zero-lag</td><td class="cell-data"><span class="mark yes">✓</span>Deep agent telemetry</td><td class="cell-data"><span class="mark part">◐</span>Cross-account roles</td><td class="cell-win winner-aws">AWS</td></tr>
-        <tr><td>Pricing predictability</td><td class="cell-data"><span class="mark part">◐</span>Per-event compounds</td><td class="cell-data"><span class="mark no">✕</span>Per-host · high TCO</td><td class="cell-data"><span class="mark yes">✓</span>Platform subscription</td><td class="cell-win winner-fcn">FortiCNAPP</td></tr>
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section>
-  <div class="section-head">
-    <div class="section-num">§ 03 / PROS &amp; CONS</div>
-    <div>
-      <h2>Strengths and <span class="accent">gaps</span>.</h2>
-      <p class="sub">The honest read for customer conversations.</p>
-    </div>
-  </div>
-
-  <div class="pc-grid">
-    <div class="pc-card aws">
-      <h4><span class="brand">AWS Native</span></h4>
-      <div class="subhead">Assembled · AWS-only</div>
-      <div class="pc-block pros">
-        <div class="pc-title">Strengths</div>
-        <ul>
-          <li>Zero integration friction — same IAM, VPC, org</li>
-          <li>Preventive controls — SCPs, Control Tower</li>
-          <li>Real-time API hooks — CloudTrail, EventBridge</li>
-          <li>Low starting cost — minimal floor</li>
-          <li>First-party data fidelity</li>
-          <li>Auditor-friendly conformance packs</li>
-          <li>Single vendor on procurement</li>
-        </ul>
-      </div>
-      <div class="pc-block cons">
-        <div class="pc-title">Gaps</div>
-        <ul>
-          <li>Stops at the AWS border</li>
-          <li>Aggregates but does not correlate</li>
-          <li>Shallow CIEM — no blast radius</li>
-          <li>No runtime workload behavior</li>
-          <li>Customer builds all remediation</li>
-          <li>Pricing compounds at scale</li>
-          <li>No native IaC scanner</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="pc-card dd">
-      <h4><span class="brand">Datadog</span> CNAPP</h4>
-      <div class="subhead">Observability-led · Multi-cloud</div>
-      <div class="pc-block pros">
-        <div class="pc-title">Strengths</div>
-        <ul>
-          <li>Single agent for observability + security</li>
-          <li>APM · logs · metrics · security in one UI</li>
-          <li>Security Inbox — noise reduction</li>
-          <li>Strong CIEM with remediation paths</li>
-          <li>Multi-cloud — AWS · Azure · GCP</li>
-          <li>Code Security — SAST, SCA, IAST</li>
-          <li>Runtime AppSec / RASP capabilities</li>
-          <li>Developer-friendly — already familiar</li>
-        </ul>
-      </div>
-      <div class="pc-block cons">
-        <div class="pc-title">Gaps</div>
-        <ul>
-          <li>Per-host pricing — high TCO at scale</li>
-          <li>Unpredictable billing — custom metrics, retention</li>
-          <li>No network enforcement loop</li>
-          <li>No preventive controls</li>
-          <li>Security depth behind Wiz/Prisma/FortiCNAPP</li>
-          <li>Ranked 7th in CSPM by PeerSpot</li>
-          <li>No OCI support</li>
-          <li>Vendor lock-in to observability bill</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="pc-card fcn">
-      <h4><span class="brand">FortiCNAPP</span></h4>
-      <div class="subhead">Unified · Fortinet Security Fabric</div>
-      <div class="pc-block pros">
-        <div class="pc-title">Strengths</div>
-        <ul>
-          <li>Alert Composite — 80–95% reduction</li>
-          <li>True multi-cloud — AWS · Azure · GCP · OCI</li>
-          <li>Deep CIEM — effective-vs-used, blast radius</li>
-          <li>Runtime behavioral CWPP</li>
-          <li>Integrated SCA · SAST · IaC · VS Code</li>
-          <li>Fortinet Security Fabric — closed-loop enforcement</li>
-          <li>Bidirectional Security Hub integration</li>
-          <li>Predictable platform subscription</li>
-        </ul>
-      </div>
-      <div class="pc-block cons">
-        <div class="pc-title">Limitations</div>
-        <ul>
-          <li>Detective only — no preventive controls</li>
-          <li>Detection latency up to 3 hrs on anomalies</li>
-          <li>UI maturity — value in API/CLI</li>
-          <li>Slow feature cycles (&gt;12 months)</li>
-          <li>Onboarding lift — IAM + log wiring</li>
-          <li>Extra line item</li>
-          <li>Limited China coverage</li>
-          <li>No SCIM at time of writing</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="section-head">
-    <div class="section-num">§ 04 / DECIDE</div>
-    <div>
-      <h2>Recommendation <span class="accent">by profile</span>.</h2>
-      <p class="sub">Match customer context to the right answer.</p>
-    </div>
-  </div>
-
-  <div class="matrix-wrap">
-    <table class="matrix">
-      <thead><tr><th>Customer Profile</th><th>Recommendation</th></tr></thead>
-      <tbody>
-        <tr><td>AWS-only · &lt;5 accounts · budget-sensitive</td><td><span class="rec rec-aws">Start native</span></td></tr>
-        <tr><td>AWS-only · enterprise · regulated · mature SecOps</td><td><span class="rec rec-both">AWS + FortiCNAPP</span></td></tr>
-        <tr><td>AWS + Azure or GCP · multi-cloud footprint</td><td><span class="rec rec-fcn">FortiCNAPP lead</span></td></tr>
-        <tr><td>Heavy Kubernetes · multi-flavor deployment</td><td><span class="rec rec-fcn">FortiCNAPP lead</span></td></tr>
-        <tr><td>Existing Fortinet customer · FortiGate/FortiWeb</td><td><span class="rec rec-fcn">FortiCNAPP lead</span></td></tr>
-        <tr><td>SOC drowning in cloud alerts</td><td><span class="rec rec-fcn">FortiCNAPP lead</span></td></tr>
-        <tr><td>Dev-led org · Datadog already deployed · small scale</td><td><span class="rec rec-dd">Datadog CNAPP</span></td></tr>
-        <tr><td>Observability &amp; security consolidation priority</td><td><span class="rec rec-dd">Datadog CNAPP</span></td></tr>
-        <tr><td>Preventive-first · FedRAMP · Zero Trust mandate</td><td><span class="rec rec-aws">AWS foundation</span></td></tr>
-        <tr><td>Large enterprise · OCI in scope · cost control</td><td><span class="rec rec-fcn">FortiCNAPP lead</span></td></tr>
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section>
-  <div class="section-head">
-    <div class="section-num">§ 05 / VERDICT</div>
-    <div>
-      <h2>The decision, <span class="accent">visualized</span>.</h2>
-      <p class="sub">Eight weighted capability axes scored 0–10 across all three platforms.</p>
-    </div>
-  </div>
-
-  <div class="decision-wrap">
-    <div class="decision-grid">
-
-      <div class="radar-panel">
-        <div class="panel-label">Capability Radar</div>
-        <div class="panel-title">Shape of coverage</div>
-
-        <div class="radar-container">
-          <svg class="radar-svg" viewBox="0 0 560 540" xmlns="http://www.w3.org/2000/svg">
-            <!-- Concentric rings (20/40/60/80/100) -->
-            <polygon class="radar-ring" points="270.0,230.0 291.6,236.3 306.4,253.4 309.6,275.7 300.2,296.2 281.3,308.4 258.7,308.4 239.8,296.2 230.4,275.7 233.6,253.4 248.4,236.3"/>
-            <polygon class="radar-ring" points="270.0,190.0 313.3,202.7 342.8,236.8 349.2,281.4 330.5,322.4 292.5,346.8 247.5,346.8 209.5,322.4 190.8,281.4 197.2,236.8 226.7,202.7"/>
-            <polygon class="radar-ring" points="270.0,150.0 334.9,169.0 379.2,220.2 388.8,287.1 360.7,348.6 303.8,385.1 236.2,385.1 179.3,348.6 151.2,287.1 160.8,220.2 205.1,169.0"/>
-            <polygon class="radar-ring" points="270.0,110.0 356.5,135.4 415.5,203.5 428.4,292.8 390.9,374.8 315.1,423.5 224.9,423.5 149.1,374.8 111.6,292.8 124.5,203.5 183.5,135.4"/>
-            <polygon class="radar-ring radar-ring-outer" points="270.0,70.0 378.1,101.7 451.9,186.9 468.0,298.5 421.1,401.0 326.3,461.9 213.7,461.9 118.9,401.0 72.0,298.5 88.1,186.9 161.9,101.7"/>
-
-            <!-- Axes -->
-            <line class="radar-axis" x1="270" y1="270" x2="270.0" y2="70.0"/>
-            <line class="radar-axis" x1="270" y1="270" x2="378.1" y2="101.7"/>
-            <line class="radar-axis" x1="270" y1="270" x2="451.9" y2="186.9"/>
-            <line class="radar-axis" x1="270" y1="270" x2="468.0" y2="298.5"/>
-            <line class="radar-axis" x1="270" y1="270" x2="421.1" y2="401.0"/>
-            <line class="radar-axis" x1="270" y1="270" x2="326.3" y2="461.9"/>
-            <line class="radar-axis" x1="270" y1="270" x2="213.7" y2="461.9"/>
-            <line class="radar-axis" x1="270" y1="270" x2="118.9" y2="401.0"/>
-            <line class="radar-axis" x1="270" y1="270" x2="72.0" y2="298.5"/>
-            <line class="radar-axis" x1="270" y1="270" x2="88.1" y2="186.9"/>
-            <line class="radar-axis" x1="270" y1="270" x2="161.9" y2="101.7"/>
-
-            <text class="radar-scale" x="276" y="193" text-anchor="start">8</text>
-            <text class="radar-scale" x="276" y="153" text-anchor="start">6</text>
-            <text class="radar-scale" x="276" y="113" text-anchor="start">4</text>
-            <text class="radar-scale" x="276" y="73" text-anchor="start">2</text>
-
-            <!-- AWS polygon (bottom layer) -->
-            <polygon class="radar-poly-aws" points="270.0,230.0 313.3,202.7 306.4,253.4 369.0,284.2 315.3,309.3 292.5,346.8 253.1,327.6 118.9,401.0 72.0,298.5 179.0,228.5 237.6,219.5"/>
-            <!-- Datadog polygon (middle) -->
-            <polygon class="radar-poly-dd" points="270.0,90.0 345.7,152.2 379.2,220.2 448.2,295.6 345.6,335.5 315.1,423.5 230.6,404.3 224.7,309.3 151.2,287.1 124.5,203.5 226.7,202.7"/>
-            <!-- FortiCNAPP polygon (top) -->
-            <polygon class="radar-poly-fcn" points="270.0,70.0 367.3,118.6 451.9,186.9 448.2,295.6 406.0,387.9 326.3,461.9 219.3,442.7 209.5,322.4 131.4,289.9 106.3,195.2 161.9,101.7"/>
-
-            <!-- AWS points -->
-            <circle class="radar-point-aws" cx="270.0" cy="230.0" r="3"/>
-            <circle class="radar-point-aws" cx="313.3" cy="202.7" r="3"/>
-            <circle class="radar-point-aws" cx="306.4" cy="253.4" r="3"/>
-            <circle class="radar-point-aws" cx="369.0" cy="284.2" r="3"/>
-            <circle class="radar-point-aws" cx="315.3" cy="309.3" r="3"/>
-            <circle class="radar-point-aws" cx="292.5" cy="346.8" r="3"/>
-            <circle class="radar-point-aws" cx="253.1" cy="327.6" r="3"/>
-            <circle class="radar-point-aws" cx="118.9" cy="401.0" r="3"/>
-            <circle class="radar-point-aws" cx="72.0" cy="298.5" r="3"/>
-            <circle class="radar-point-aws" cx="179.0" cy="228.5" r="3"/>
-            <circle class="radar-point-aws" cx="237.6" cy="219.5" r="3"/>
-
-            <!-- Datadog points -->
-            <circle class="radar-point-dd" cx="270.0" cy="90.0" r="3"/>
-            <circle class="radar-point-dd" cx="345.7" cy="152.2" r="3"/>
-            <circle class="radar-point-dd" cx="379.2" cy="220.2" r="3"/>
-            <circle class="radar-point-dd" cx="448.2" cy="295.6" r="3"/>
-            <circle class="radar-point-dd" cx="345.6" cy="335.5" r="3"/>
-            <circle class="radar-point-dd" cx="315.1" cy="423.5" r="3"/>
-            <circle class="radar-point-dd" cx="230.6" cy="404.3" r="3"/>
-            <circle class="radar-point-dd" cx="224.7" cy="309.3" r="3"/>
-            <circle class="radar-point-dd" cx="151.2" cy="287.1" r="3"/>
-            <circle class="radar-point-dd" cx="124.5" cy="203.5" r="3"/>
-            <circle class="radar-point-dd" cx="226.7" cy="202.7" r="3"/>
-
-            <!-- FortiCNAPP points -->
-            <circle class="radar-point-fcn" cx="270.0" cy="70.0" r="3"/>
-            <circle class="radar-point-fcn" cx="367.3" cy="118.6" r="3"/>
-            <circle class="radar-point-fcn" cx="451.9" cy="186.9" r="3"/>
-            <circle class="radar-point-fcn" cx="448.2" cy="295.6" r="3"/>
-            <circle class="radar-point-fcn" cx="406.0" cy="387.9" r="3"/>
-            <circle class="radar-point-fcn" cx="326.3" cy="461.9" r="3"/>
-            <circle class="radar-point-fcn" cx="219.3" cy="442.7" r="3"/>
-            <circle class="radar-point-fcn" cx="209.5" cy="322.4" r="3"/>
-            <circle class="radar-point-fcn" cx="131.4" cy="289.9" r="3"/>
-            <circle class="radar-point-fcn" cx="106.3" cy="195.2" r="3"/>
-            <circle class="radar-point-fcn" cx="161.9" cy="101.7" r="3"/>
-
-            <!-- Labels (11 axes) -->
-            <text class="radar-label" x="270" y="48" text-anchor="middle">Multi-Cloud</text>
-            <text class="radar-label" x="389" y="82" text-anchor="start">CIEM</text>
-            <text class="radar-label" x="465" y="180" text-anchor="start" dominant-baseline="middle">Alert Composite</text>
-            <text class="radar-label" x="482" y="302" text-anchor="start" dominant-baseline="middle">Agent</text>
-            <text class="radar-label" x="435" y="420" text-anchor="start" dominant-baseline="hanging">Agentless</text>
-            <text class="radar-label" x="336" y="488" text-anchor="start" dominant-baseline="hanging">K8s</text>
-            <text class="radar-label" x="204" y="488" text-anchor="end" dominant-baseline="hanging">Code · IaC</text>
-            <text class="radar-label" x="104" y="420" text-anchor="end" dominant-baseline="hanging">Preventive</text>
-            <text class="radar-label" x="58" y="302" text-anchor="end" dominant-baseline="middle">Cloud Native</text>
-            <text class="radar-label" x="75" y="180" text-anchor="end" dominant-baseline="middle">Runtime</text>
-            <text class="radar-label" x="151" y="82" text-anchor="end">Security Fabric</text>
-          </svg>
-        </div>
-
-        <div class="radar-legend">
-          <div class="legend-item"><span class="legend-swatch swatch-aws"></span>AWS Native</div>
-          <div class="legend-item"><span class="legend-swatch swatch-dd"></span>Datadog</div>
-          <div class="legend-item"><span class="legend-swatch swatch-fcn"></span>FortiCNAPP</div>
-        </div>
-      </div>
-
-      <div class="score-panel">
-        <div class="panel-label">Weighted Scorecard</div>
-        <div class="panel-title">Axis-by-axis comparison</div>
-
-        <div class="score-rows">
-          <div class="score-row"><span class="axis">Multi-Cloud</span><div class="score-bars"><div class="bar bar-aws" style="width: 20%"></div><div class="bar bar-dd" style="width: 90%"></div><div class="bar bar-fcn" style="width: 100%"></div></div></div>
-          <div class="score-row"><span class="axis">CIEM</span><div class="score-bars"><div class="bar bar-aws" style="width: 40%"></div><div class="bar bar-dd" style="width: 70%"></div><div class="bar bar-fcn" style="width: 90%"></div></div></div>
-          <div class="score-row"><span class="axis">Alert Composite</span><div class="score-bars"><div class="bar bar-aws" style="width: 20%"></div><div class="bar bar-dd" style="width: 60%"></div><div class="bar bar-fcn" style="width: 100%"></div></div></div>
-          <div class="score-row"><span class="axis">Agent</span><div class="score-bars"><div class="bar bar-aws" style="width: 50%"></div><div class="bar bar-dd" style="width: 90%"></div><div class="bar bar-fcn" style="width: 90%"></div></div></div>
-          <div class="score-row"><span class="axis">Agentless</span><div class="score-bars"><div class="bar bar-aws" style="width: 30%"></div><div class="bar bar-dd" style="width: 50%"></div><div class="bar bar-fcn" style="width: 90%"></div></div></div>
-          <div class="score-row"><span class="axis">K8s</span><div class="score-bars"><div class="bar bar-aws" style="width: 40%"></div><div class="bar bar-dd" style="width: 80%"></div><div class="bar bar-fcn" style="width: 100%"></div></div></div>
-          <div class="score-row"><span class="axis">Code · IaC</span><div class="score-bars"><div class="bar bar-aws" style="width: 30%"></div><div class="bar bar-dd" style="width: 70%"></div><div class="bar bar-fcn" style="width: 90%"></div></div></div>
-          <div class="score-row"><span class="axis">Preventive</span><div class="score-bars"><div class="bar bar-aws" style="width: 100%"></div><div class="bar bar-dd" style="width: 30%"></div><div class="bar bar-fcn" style="width: 40%"></div></div></div>
-          <div class="score-row"><span class="axis">Cloud Native</span><div class="score-bars"><div class="bar bar-aws" style="width: 100%"></div><div class="bar bar-dd" style="width: 60%"></div><div class="bar bar-fcn" style="width: 70%"></div></div></div>
-          <div class="score-row"><span class="axis">Runtime</span><div class="score-bars"><div class="bar bar-aws" style="width: 50%"></div><div class="bar bar-dd" style="width: 80%"></div><div class="bar bar-fcn" style="width: 90%"></div></div></div>
-          <div class="score-row"><span class="axis">Security Fabric</span><div class="score-bars"><div class="bar bar-aws" style="width: 30%"></div><div class="bar bar-dd" style="width: 40%"></div><div class="bar bar-fcn" style="width: 100%"></div></div></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="verdict-bar">
-    <div class="score-block aws-score">
-      <div class="score-label">AWS Native</div>
-      <div class="score-val">51<span class="fraction">/110</span></div>
-    </div>
-    <div class="score-block dd-score">
-      <div class="score-label">Datadog</div>
-      <div class="score-val">72<span class="fraction">/110</span></div>
-    </div>
-    <div class="score-block fcn-score">
-      <div class="score-label">FortiCNAPP</div>
-      <div class="score-val">96<span class="fraction">/110</span></div>
-    </div>
-    <div class="verdict-text">
-      <strong>FortiCNAPP leads on 12 of 16 capability rows.</strong> Datadog is the strongest choice when observability and security must share one agent and one bill. AWS Native owns preventive guardrails and Cloud Native integration. The enterprise production pattern layers FortiCNAPP on top of AWS-native guardrails, reserving Datadog for dev-led teams already paying for the observability platform.
-    </div>
-  </div>
-</section>
-
-<footer>
-  <div>
-    <h5>Primary References</h5>
-    <ul>
-      <li><strong>AWS Security Hub CSPM</strong> · aws.amazon.com/security-hub/cspm</li>
-      <li><strong>Datadog Cloud Security</strong> · Documentation · 2026</li>
-      <li><strong>FortiCNAPP</strong> · Release Notes · Feb 2026</li>
-      <li><strong>FortiGuard Labs</strong> · Cloud Intrusion Detection · Jul 2025</li>
-      <li><strong>PeerSpot</strong> · CSPM Mindshare · Jan 2026</li>
-      <li><strong>Gartner Peer Insights</strong> · FortiCNAPP · 2026</li>
-      <li><strong>KuppingerCole</strong> · CNAPP Leadership Compass 2025</li>
-    </ul>
-  </div>
-  <div>
-    <h5>Recommended Demo Flow</h5>
-    <ul>
-      <li><strong>01</strong> · Polygraph composite alert — compromised identity</li>
-      <li><strong>02</strong> · CIEM effective-vs-used on a Lambda role</li>
-      <li><strong>03</strong> · Side-by-side finding in Security Hub ↔ FortiCNAPP</li>
-      <li><strong>04</strong> · FortiSOAR playbook isolating an EC2 via FortiGate</li>
-      <li><strong>05</strong> · TCO comparison · Datadog per-host vs FortiCNAPP subscription</li>
-    </ul>
-  </div>
-</footer>
-
-<div class="colophon">
-  <span>Fortinet Red · #EF2A1F · PMS 485 C</span>
-  <span>Prepared for Internal PreSales Use</span>
-</div>
-
-</div>
-</body>
-</html>
+# CNAPP on AWS — Three-Way Platform Comparison
+
+[![AWS](https://img.shields.io/badge/AWS_Native-FF9900?style=flat-square&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/security-hub/)
+[![Datadog](https://img.shields.io/badge/Datadog_CNAPP-632CA6?style=flat-square&logo=datadog&logoColor=white)](https://www.datadoghq.com/product/cloud-security-management/)
+[![FortiCNAPP](https://img.shields.io/badge/FortiCNAPP-EF2A1F?style=flat-square&logo=fortinet&logoColor=white)](https://www.fortinet.com/products/forticnapp)
+![Status](https://img.shields.io/badge/status-internal_presales-0A0C10?style=flat-square)
+![Updated](https://img.shields.io/badge/updated-Apr_2026-888?style=flat-square)
+
+> **Side-by-side comparison of three CNAPP approaches on AWS.**
+> **AWS Native** supplies guardrails and preventive controls. **Datadog** bundles CNAPP into the observability platform. **FortiCNAPP** delivers unified cloud security with closed-loop enforcement via the **Fortinet Security Fabric**.
+
+---
+
+## Table of Contents
+
+- [Executive Summary](#executive-summary)
+- [1. The Three Stacks](#1--the-three-stacks)
+- [2. Capability Parity Matrix](#2--capability-parity-matrix)
+- [3. Strengths & Gaps](#3--strengths--gaps)
+- [4. Recommendation by Profile](#4--recommendation-by-profile)
+- [5. Decision Graph](#5--decision-graph)
+- [Final Verdict](#final-verdict)
+- [References](#references)
+
+---
+
+## Executive Summary
+
+| Platform | Score | One-Line Position |
+|---|---|---|
+| ![AWS](https://img.shields.io/badge/-AWS_Native-FF9900?style=flat-square) | **39 / 80** | AWS-native guardrails, preventive controls, first-party integration |
+| ![Datadog](https://img.shields.io/badge/-Datadog-632CA6?style=flat-square) | **50 / 80** | Observability + security in one agent; high TCO at scale |
+| ![FortiCNAPP](https://img.shields.io/badge/-FortiCNAPP-EF2A1F?style=flat-square) | **68 / 80** | Unified multi-cloud CNAPP + closed-loop enforcement via Fortinet Security Fabric |
+
+> [!TIP]
+> **FortiCNAPP leads on 10 of 14 capability rows.** The enterprise production pattern layers FortiCNAPP on top of AWS-native preventive guardrails. Datadog fits dev-led teams already paying for the observability platform.
+
+---
+
+## 1 · The Three Stacks
+
+### 🟠 Stack A — AWS Native Suite · *Assembled*
+
+| Tier | Service |
+|---|---|
+| Hub | Security Hub CSPM |
+| CSPM | AWS Config |
+| Audit | CloudTrail |
+| Threat | GuardDuty |
+| CWPP | Inspector |
+| Graph | Detective |
+| Data | Macie |
+| CIEM | Access Analyzer |
+| Preventive | Control Tower · SCPs |
+| Automation | EventBridge · Lambda |
+
+### 🟣 Stack B — Datadog CNAPP · *Bundled*
+
+| Tier | Service |
+|---|---|
+| Platform | Observability Data Lake |
+| CSPM | 1000+ OOTB Rules |
+| KSPM | CIS · EKS / AKS / GKE |
+| CWPP | Datadog Agent |
+| CIEM | IAM Risk · AWS · Azure · GCP |
+| CDR | Cloud SIEM · Signals |
+| Triage | Security Inbox |
+| Code | SAST · SCA · IAST |
+| AppSec | Runtime AppSec · RASP |
+| Workflow | Workflows · Jira |
+
+### 🔴 Stack C — FortiCNAPP · *Unified*
+
+| Tier | Service |
+|---|---|
+| Platform | Polygraph Data Platform |
+| CSPM | Multi-Cloud Posture |
+| CWPP | Agent + Agentless |
+| CIEM | Cross-Cloud CIEM |
+| CDR | Composite Alerts |
+| Code | SCA · SAST · IaC |
+| Container | Image · Runtime · K8s |
+| Fabric | **Fortinet Security Fabric** |
+| Response | FortiSOAR Playbooks |
+| Audit | Native Log Ingest |
+
+---
+
+## 2 · Capability Parity Matrix
+
+Legend: ✅ full &nbsp; 🟡 partial &nbsp; ❌ gap
+
+| Capability | 🟠 AWS Native | 🟣 Datadog | 🔴 FortiCNAPP | 🏆 Winner |
+|---|---|---|---|---|
+| **Multi-cloud CSPM** | ❌ AWS only | ✅ AWS · Azure · GCP | ✅ AWS · Azure · GCP · OCI | **FortiCNAPP** |
+| **Runtime CWPP** | 🟡 Network-layer only | ✅ Agent · process · file | ✅ Agent + agentless · K8s | **FortiCNAPP** |
+| **Vulnerability scan** | ✅ Inspector | ✅ Host · container · Lambda | ✅ + runtime exploitability | **FortiCNAPP** |
+| **CIEM depth** | 🟡 Access Analyzer | ✅ IAM risks · remediation | ✅ Effective-vs-used · toxic combos | **FortiCNAPP** |
+| **Composite alerts** | ❌ None | 🟡 Security Inbox | ✅ Polygraph ML | **FortiCNAPP** |
+| **Observability correlation** | ❌ CloudWatch only | ✅ APM · logs · metrics | ❌ Not primary use-case | **Datadog** |
+| **Compliance frameworks** | ✅ AFSBP · CIS · PCI | ✅ CIS · PCI · HIPAA · SOC2 | ✅ + custom authoring | *Tie* |
+| **IaC · code scanning** | ❌ No native scanner | ✅ SAST · SCA · IAST | ✅ SCA · SAST · IaC · VS Code | *Tie* |
+| **Kubernetes coverage** | 🟡 EKS only | ✅ EKS · AKS · GKE | ✅ EKS · AKS · GKE · OKE | **FortiCNAPP** |
+| **Auto-remediation** | 🟡 DIY EventBridge | 🟡 Workflows · Jira | ✅ FortiSOAR playbooks | **FortiCNAPP** |
+| **Detection → enforcement** | ❌ Detection only | ❌ Detection only | ✅ FortiGate dynamic | **FortiCNAPP** |
+| **Preventive guardrails** | ✅ SCPs · Control Tower | ❌ Detective only | ❌ Detective only | **AWS** |
+| **Native AWS integration** | ✅ First-party zero-lag | ✅ Deep agent telemetry | 🟡 Cross-account roles | **AWS** |
+| **Pricing predictability** | 🟡 Per-event compounds | ❌ Per-host · high TCO | ✅ Platform subscription | **FortiCNAPP** |
+
+**Tally:** FortiCNAPP 10 · AWS 2 · Datadog 1 · Tie 2
+
+---
+
+## 3 · Strengths & Gaps
+
+### 🟠 AWS Native Suite
+
+<table>
+<tr>
+<td valign="top" width="50%">
+
+**✅ Strengths**
+
+- Zero integration friction — same IAM, VPC, org
+- Preventive controls — SCPs, Control Tower
+- Real-time API hooks — CloudTrail, EventBridge
+- Low starting cost — minimal floor
+- First-party data fidelity
+- Auditor-friendly conformance packs
+- Single vendor on procurement
+
+</td>
+<td valign="top" width="50%">
+
+**❌ Gaps**
+
+- Stops at the AWS border
+- Aggregates but does not correlate
+- Shallow CIEM — no blast radius
+- No runtime workload behavior
+- Customer builds all remediation
+- Pricing compounds at scale
+- No native IaC scanner
+
+</td>
+</tr>
+</table>
+
+### 🟣 Datadog CNAPP
+
+<table>
+<tr>
+<td valign="top" width="50%">
+
+**✅ Strengths**
+
+- Single agent for observability + security
+- APM · logs · metrics · security in one UI
+- Security Inbox — noise reduction
+- Strong CIEM with remediation paths
+- Multi-cloud — AWS · Azure · GCP
+- Code Security — SAST, SCA, IAST
+- Runtime AppSec / RASP capabilities
+- Developer-friendly — already familiar
+
+</td>
+<td valign="top" width="50%">
+
+**❌ Gaps**
+
+- Per-host pricing — high TCO at scale
+- Unpredictable billing — custom metrics, retention
+- No network enforcement loop
+- No preventive controls
+- Security depth behind Wiz/Prisma/FortiCNAPP
+- Ranked 7th in CSPM by PeerSpot
+- No OCI support
+- Vendor lock-in to observability bill
+
+</td>
+</tr>
+</table>
+
+### 🔴 FortiCNAPP
+
+<table>
+<tr>
+<td valign="top" width="50%">
+
+**✅ Strengths**
+
+- Composite alerts — 80–95% reduction
+- True multi-cloud — AWS · Azure · GCP · OCI
+- Deep CIEM — effective-vs-used, blast radius
+- Runtime behavioral CWPP
+- Integrated SCA · SAST · IaC · VS Code
+- **Fortinet Security Fabric** — closed-loop enforcement
+- Bidirectional Security Hub integration
+- Predictable platform subscription
+
+</td>
+<td valign="top" width="50%">
+
+**⚠️ Limitations**
+
+- Detective only — no preventive controls
+- Detection latency up to 3 hrs on anomalies
+- UI maturity — value in API/CLI
+- Slow feature cycles (>12 months)
+- Onboarding lift — IAM + log wiring
+- Extra line item
+- Limited China coverage
+- No SCIM at time of writing
+
+</td>
+</tr>
+</table>
+
+---
+
+## 4 · Recommendation by Profile
+
+| Customer Profile | Recommendation |
+|---|---|
+| AWS-only · <5 accounts · budget-sensitive | ![Start](https://img.shields.io/badge/Start_native-FF9900?style=flat-square) |
+| AWS-only · enterprise · regulated · mature SecOps | ![Both](https://img.shields.io/badge/AWS_+_FortiCNAPP-0A0C10?style=flat-square) |
+| AWS + Azure or GCP · multi-cloud footprint | ![FCN](https://img.shields.io/badge/FortiCNAPP_lead-EF2A1F?style=flat-square) |
+| Heavy Kubernetes · multi-flavor deployment | ![FCN](https://img.shields.io/badge/FortiCNAPP_lead-EF2A1F?style=flat-square) |
+| Existing Fortinet customer · FortiGate/FortiWeb | ![FCN](https://img.shields.io/badge/FortiCNAPP_lead-EF2A1F?style=flat-square) |
+| SOC drowning in cloud alerts | ![FCN](https://img.shields.io/badge/FortiCNAPP_lead-EF2A1F?style=flat-square) |
+| Dev-led org · Datadog already deployed · small scale | ![DD](https://img.shields.io/badge/Datadog_CNAPP-632CA6?style=flat-square) |
+| Observability & security consolidation priority | ![DD](https://img.shields.io/badge/Datadog_CNAPP-632CA6?style=flat-square) |
+| Preventive-first · FedRAMP · Zero Trust mandate | ![AWS](https://img.shields.io/badge/AWS_foundation-FF9900?style=flat-square) |
+| Large enterprise · OCI in scope · cost control | ![FCN](https://img.shields.io/badge/FortiCNAPP_lead-EF2A1F?style=flat-square) |
+
+---
+
+## 5 · Decision Graph
+
+### Weighted Scorecard · Axis-by-Axis (0–10)
+
+| Axis | 🟠 AWS | 🟣 Datadog | 🔴 FortiCNAPP |
+|---|---|---|---|
+| Multi-Cloud | ██░░░░░░░░ `2` | █████████░ `9` | ██████████ `10` |
+| CIEM | ████░░░░░░ `4` | ███████░░░ `7` | █████████░ `9` |
+| Alert Composite | ██░░░░░░░░ `2` | ██████░░░░ `6` | ██████████ `10` |
+| Runtime | █████░░░░░ `5` | ████████░░ `8` | █████████░ `9` |
+| Code · IaC | ███░░░░░░░ `3` | ███████░░░ `7` | █████████░ `9` |
+| Preventive Guardrails | ██████████ `10` | ███░░░░░░░ `3` | ████░░░░░░ `4` |
+| Native Integration | ██████████ `10` | ██████░░░░ `6` | ███████░░░ `7` |
+| **Fortinet Security Fabric** | ███░░░░░░░ `3` | ████░░░░░░ `4` | ██████████ `10` |
+| **Total** | **39 / 80** | **50 / 80** | **68 / 80** |
+
+### Capability Radar
+
+```mermaid
+%%{init: {"theme": "dark", "themeVariables": {"xyChart": {"backgroundColor": "#0A0C10", "titleColor": "#E8EAED", "xAxisLabelColor": "#A0A6B0", "yAxisLabelColor": "#A0A6B0", "plotColorPalette": "#FF9900, #8B5FBF, #EF2A1F"}}}}%%
+xychart-beta
+    title "Capability Score by Axis (0–10)"
+    x-axis ["Multi-Cloud", "CIEM", "Composite", "Runtime", "Code/IaC", "Preventive", "Native", "Fabric"]
+    y-axis "Score" 0 --> 10
+    bar [2, 4, 2, 5, 3, 10, 10, 3]
+    bar [9, 7, 6, 8, 7, 3, 6, 4]
+    bar [10, 9, 10, 9, 9, 4, 7, 10]
+```
+
+> **Legend:** 🟠 Bar 1 = AWS Native · 🟣 Bar 2 = Datadog · 🔴 Bar 3 = FortiCNAPP
+
+### Production Integration Pattern
+
+```mermaid
+flowchart LR
+    subgraph AWS["AWS Cloud Environment"]
+        CT[CloudTrail]
+        VPC[VPC Flow Logs]
+        GD[GuardDuty]
+        CFG[AWS Config]
+        SH[Security Hub]
+    end
+
+    subgraph FCN["FortiCNAPP · Polygraph"]
+        POLY[Polygraph ML Engine]
+        CA[Composite Alerts]
+    end
+
+    subgraph FAB["Fortinet Security Fabric"]
+        SOAR[FortiSOAR]
+        FG[FortiGate Dynamic Addr]
+        ANA[FortiAnalyzer]
+    end
+
+    CT --> POLY
+    VPC --> POLY
+    GD --> SH
+    CFG --> SH
+    SH <--> POLY
+    POLY --> CA
+    CA --> SOAR
+    SOAR --> FG
+    SOAR --> ANA
+    FG -->|Block Traffic| AWS
+
+    style AWS fill:#1E232C,stroke:#FF9900,color:#E8EAED
+    style FCN fill:#1E232C,stroke:#EF2A1F,color:#E8EAED
+    style FAB fill:#1E232C,stroke:#EF2A1F,color:#E8EAED
+    style CA fill:#EF2A1F,stroke:#EF2A1F,color:#fff
+    style POLY fill:#171B22,stroke:#EF2A1F,color:#E8EAED
+```
+
+---
+
+## Final Verdict
+
+> [!IMPORTANT]
+> ### Scores
+>
+> | 🟠 AWS Native | 🟣 Datadog | 🔴 FortiCNAPP |
+> |:---:|:---:|:---:|
+> | **39 / 80** | **50 / 80** | **68 / 80** |
+>
+> **FortiCNAPP leads on 10 of 14 capability rows.**
+> Datadog is the strongest choice when observability and security must share one agent and one bill. AWS Native owns preventive guardrails and first-party integration. The enterprise production pattern layers FortiCNAPP on top of AWS-native guardrails, reserving Datadog for dev-led teams already paying for the observability platform.
+
+---
+
+## Recommended Demo Flow
+
+1. **Polygraph composite alert** — compromised identity walkthrough
+2. **CIEM effective-vs-used** — permissions on a Lambda role
+3. **Side-by-side finding** — Security Hub ⇄ FortiCNAPP
+4. **FortiSOAR playbook** — isolating an EC2 via FortiGate (Fortinet Security Fabric)
+5. **TCO comparison** — Datadog per-host vs FortiCNAPP platform subscription
+
+---
+
+## References
+
+| Source | Link |
+|---|---|
+| AWS Security Hub CSPM | <https://aws.amazon.com/security-hub/cspm> |
+| Datadog Cloud Security | <https://docs.datadoghq.com/security/cloud_security_management/> |
+| FortiCNAPP Product Page | <https://www.fortinet.com/products/forticnapp> |
+| FortiCNAPP Release Notes | FortiCNAPP · Feb 2026 |
+| FortiGuard Labs — Cloud IDS | <https://www.fortinet.com/blog/threat-research> |
+| Gartner Peer Insights · FortiCNAPP | <https://www.gartner.com/reviews/product/forticnapp> |
+| KuppingerCole CNAPP Leadership Compass | 2025 · FortiCNAPP = Leader |
+| PeerSpot CSPM Mindshare Report | Jan 2026 |
+
+---
+
+<sub>**Prepared by:** Fortinet PreSales · DevSecOps Engineering &nbsp;·&nbsp; **Doc ID:** `CNAPP-AWS-02` &nbsp;·&nbsp; **Rev:** April 2026 &nbsp;·&nbsp; **Classification:** Internal</sub>
+
+<sub>*Fortinet Red · #EF2A1F · PMS 485 C*</sub>
